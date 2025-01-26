@@ -1,0 +1,11 @@
+*.jpg
+*.png
+*.pdf
+*.root
+*.pkl
+*.pyc
+
+*/*outdir*
+*/*bin*
+*/*obj*
+*/*jobs

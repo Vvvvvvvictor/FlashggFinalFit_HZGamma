@@ -1,0 +1,12 @@
+cat=3
+truth=BernsteinStepxGau:2:bern2
+truth=ExponentialStepxGau:3:exp3
+truth=LaurentStepxGau:1:lau1
+truth=PowerLawStepxGau:1:pow1
+paul=BernsteinStepxGau:1:bern1
+paul=BernsteinStepxGau:2:bern2
+paul=BernsteinStepxGau:3:bern3
+paul=ExponentialStepxGau:3:exp3
+paul=LaurentStepxGau:1:lau1
+paul=PowerLawStepxGau:1:pow1
+

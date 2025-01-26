@@ -1,0 +1,8 @@
+{
+    "WplusH__VHlep"                                                                            : {"nRV":5,"nWV":1},
+    "WminusH__VHlep"                                                                           : {"nRV":4,"nWV":1},
+    "ZH__VHlep"                                                                                : {"nRV":2,"nWV":1},
+    "ttH__VHlep"                                                                               : {"nRV":3,"nWV":1},
+    "ggH__VHlep"                                                                               : {"nRV":1,"nWV":1},
+    "VBF__VHlep"                                                                               : {"nRV":2,"nWV":1}
+}

@@ -1,0 +1,29 @@
+{
+    "mu_inclusive":{
+        "pois":"r",
+        "fits":"profile1D:syst:all+profile1D:statonly:all",
+        "points":"40:1+40:1",
+        "fit_opts":"--setParameterRanges r=0,2 --saveSpecifiedNuis all+--setParameterRanges r=0,2 --saveSpecifiedNuis all"
+    },
+
+    "mu":{
+        "pois":"r_ggH,r_VBF,r_VH,r_top",
+        "fits":"profile1D:syst:all",
+        "points":"20:1",
+        "fit_opts":"--saveSpecifiedNuis all --saveInactivePOI 1 --cminApproxPreFitTolerance=10"
+    },
+
+    "mu_fiducial":{
+        "pois":"r_higgs_in",
+        "fits":"profile1D:syst:all+profile1D:statonly:all",
+        "points":"40:1+40:1",
+        "fit_opts":"--setParameterRanges r=0,2 --saveSpecifiedNuis all+--setParameterRanges r=0,2 --saveSpecifiedNuis all"
+    },
+
+    "mu_differential":{
+        "pois":"r_higgs_in_0jets,r_higgs_in_1jets,r_higgs_in_2jets",
+        "fits":"profile1D:syst:all+profile1D:statonly:all",
+        "points":"40:1+40:1",
+        "fit_opts":"--setParameterRanges r=0,2 --saveSpecifiedNuis all+--setParameterRanges r=0,2 --saveSpecifiedNuis all"
+    }
+}
