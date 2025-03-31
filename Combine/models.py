@@ -2,12 +2,12 @@ models = {
   "mu_inclusive":"",
 
   "mu_fiducial":"-P HiggsAnalysis.CombinedLimit.PhysicsModel:multiSignalModel \
---PO \"map=.*/ggH.*:r_higgs_in[1,0,2]\" \
---PO \"map=.*/ttH.*:r_higgs_in[1,0,2]\" \
---PO \"map=.*/VBF.*:r_higgs_in[1,0,2]\" \
---PO \"map=.*/WplusH.*:r_higgs_in[1,0,2]\" \
---PO \"map=.*/WminusH.*:r_higgs_in[1,0,2]\" \
---PO \"map=.*/ZH.*:r_higgs_in[1,0,2]\"",
+--PO \"map=.*/ggH.*:r[1,-100,102]\" \
+--PO \"map=.*/ttH.*:r[1,-100,102]\" \
+--PO \"map=.*/VBF.*:r[1,-100,102]\" \
+--PO \"map=.*/WplusH.*:r[1,-100,102]\" \
+--PO \"map=.*/WminusH.*:r[1,-100,102]\" \
+--PO \"map=.*/ZH.*:r[1,-100,102]\"",
 
   "mu_differential":"-P HiggsAnalysis.CombinedLimit.PhysicsModel:multiSignalModel \
 --PO \"map=.*/ggH_in_0jets.*:r_higgs_in_0jets[1,0,2]\" \

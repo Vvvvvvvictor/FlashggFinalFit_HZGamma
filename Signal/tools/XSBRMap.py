@@ -171,6 +171,7 @@ globalXSBRMap['fiducialAnalysis']['TTH_out'] = {'mode':'constant','factor':0.563
 # globalXSBRMap['fiducialAnalysis']['ttH'] = {'mode':'constant','factor': 0.5071}
 globalXSBRMap['fiducialAnalysis']['ggH'] = {'mode':'constant','factor': 1}
 globalXSBRMap['fiducialAnalysis']['VBF'] = {'mode':'constant','factor': 1}
+globalXSBRMap['fiducialAnalysis']['WH'] = {'mode':'constant','factor': 1}
 globalXSBRMap['fiducialAnalysis']['WplusH'] = {'mode':'constant','factor': 1}
 globalXSBRMap['fiducialAnalysis']['WminusH'] = {'mode':'constant','factor': 1}
 globalXSBRMap['fiducialAnalysis']['ZH'] = {'mode':'constant','factor': 1}

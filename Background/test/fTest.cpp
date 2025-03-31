@@ -54,10 +54,13 @@ using namespace boost;
 namespace po = program_options;
 
 bool BLIND = true;
+bool BLIND_FIT = false; // New flag to decide whether to blind the fit process
 bool runFtestCheckWithToys=false;
 int mgg_low = 100;
 int mgg_high = 180;
 int nBinsForMass = 4*(mgg_high-mgg_low);
+double blind_low = 120; // Lower boundary of the blind region
+double blind_high = 130; // Upper boundary of the blind region
 
 RooRealVar *intLumi_ = new RooRealVar("IntLumi","hacked int lumi", 1000.);
 
@@ -74,31 +77,79 @@ RooAbsPdf* getPdf(PdfModelBuilder &pdfsModel, string type, int order, const char
   else if (type=="ExponentialStepxGau") return pdfsModel.getExponentialStepxGau(Form("%s_exp%d",ext,order),order); 
   else if (type=="PowerLawStepxGau") return pdfsModel.getPowerLawStepxGau(Form("%s_pow%d",ext,order),order); 
   else if (type=="LaurentStepxGau") return pdfsModel.getLaurentStepxGau(Form("%s_lau%d",ext,order),order);
+  else if (type=="ExpModGauss"){
+    if (order == 1) return pdfsModel.getExpModGaussian(Form("%s_expmodgauss",ext));
+    else return NULL;
+  }
   else {
     cerr << "[ERROR] -- getPdf() -- type " << type << " not recognised." << endl;
     return NULL;
   }
 }
 
-void runFit(RooAbsPdf *pdf, RooDataSet *data, double *NLL, int *stat_t, int MaxTries){
-
-	int ntries=0;
-  	RooArgSet *params_test = pdf->getParameters((const RooArgSet*)(0));
-	//params_test->Print("v");
-	int stat=1;
-	double minnll=10e8;
-	while (stat!=0){
-	  if (ntries>=MaxTries) break;
-	  RooFitResult *fitTest = pdf->fitTo(*data,RooFit::Save(1)
-    ,RooFit::Minimizer("Minuit2","minimize"),RooFit::SumW2Error(kTRUE)); //FIXME
-          stat = fitTest->status();
-	  minnll = fitTest->minNll();
-	  if (stat!=0) params_test->assignValueOnly(fitTest->randomizePars());
-	  ntries++; 
-	}
-	*stat_t = stat;
-	*NLL = minnll;
+/**
+ * Implementation of a new fit function that can handle blinded regions
+ * @param pdf - The PDF to fit to the data
+ * @param data - The dataset to fit to
+ * @param NLL - Pointer to store the resulting negative log-likelihood
+ * @param stat_t - Pointer to store the fit status
+ * @param MaxTries - Maximum number of fit attempts
+ * @param doBlind - Whether to exclude the signal region (120-130 GeV) from the fit
+ */
+void blindedFit(RooAbsPdf *pdf, RooDataSet *data, double *NLL, int *stat_t, int MaxTries, bool doBlind=false){
+  int ntries=0;
+  RooArgSet *params_test = pdf->getParameters((const RooArgSet*)(0));
+  int stat=1;
+  double minnll=10e8;
+  
+  while (stat!=0){
+    if (ntries>=MaxTries) break;
+    
+    RooFitResult *fitTest;
+    if (doBlind) {
+      // Get the mass variable from the dataset
+      const RooArgSet* obs = data->get();
+      RooRealVar* mass = (RooRealVar*)obs->find("CMS_hgg_mass");
+      if (!mass) {
+        std::cout << "[ERROR] Cannot find mass variable in dataset" << std::endl;
+        break;
+      }
+      
+      // Set up two ranges excluding the blind region
+      mass->setRange("lowSideband", mass->getMin(), blind_low);
+      mass->setRange("highSideband", blind_high, mass->getMax());
+      
+      // Fit only to the sidebands, excluding the blind region
+      fitTest = pdf->fitTo(*data, 
+                         RooFit::Save(1),
+                         RooFit::Range("lowSideband,highSideband"),
+                         RooFit::Minimizer("Minuit2","minimize"),
+                         RooFit::SumW2Error(kTRUE));
+    } else {
+      // Normal fit without blinding
+      fitTest = pdf->fitTo(*data,
+                         RooFit::Save(1),
+                         RooFit::Minimizer("Minuit2","minimize"),
+                         RooFit::SumW2Error(kTRUE));
+    }
+    
+    stat = fitTest->status();
+    minnll = fitTest->minNll();
+    if (stat!=0) params_test->assignValueOnly(fitTest->randomizePars());
+    ntries++; 
+  }
+  *stat_t = stat;
+  *NLL = minnll;
 }
+
+/**
+ * Modified version of runFit that calls the new blindedFit function
+ * Uses the global BLIND_FIT flag to determine whether to blind the fit
+ */
+void runFit(RooAbsPdf *pdf, RooDataSet *data, double *NLL, int *stat_t, int MaxTries){
+  blindedFit(pdf, data, NLL, stat_t, MaxTries, BLIND_FIT);
+}
+
 double getProbabilityFtest(double chi2, int ndof,RooAbsPdf *pdfNull, RooAbsPdf *pdfTest, RooRealVar *mass, RooDataSet *data, std::string name){
  
   double prob_asym = TMath::Prob(chi2,ndof);
@@ -490,6 +541,7 @@ void plot(RooRealVar *mass, map<string,RooAbsPdf*> pdfs, RooDataSet *data, strin
     int col;
     if (i<=6) col=color[i];
     else {col=kBlack; style++;}
+    cout << "[INFO] Plotting " << it->first << " with color " << col << " and PDF at " << it->second << endl;
     it->second->plotOn(plot,LineColor(col),LineStyle(style));//,RooFit::NormRange("fitdata_1,fitdata_2"));
     TObject *pdfLeg = plot->getObject(int(plot->numItems()-1));
     std::string ext = "";
@@ -596,6 +648,187 @@ int getBestFitFunction(RooMultiPdf *bkg, RooDataSet *data, RooCategory *cat, boo
 	return best_index;
 }
 
+/**
+ * Calculates the Kolmogorov-Smirnov test probability for a PDF fitted to data
+ * @param mass - The mass variable
+ * @param pdf - The PDF to test
+ * @param data - The dataset to test against
+ * @param name - Base name for output files
+ * @return KS test probability
+ */
+double getKSProb(RooRealVar *mass, RooAbsPdf *pdf, RooDataSet *data, string name) {
+  int nBin = mgg_high - mgg_low;
+
+  // If blinding is enabled, create data excluding the signal region
+  TH1F *dataHist = NULL;
+  
+  if (BLIND) {
+    // Create histograms for two regions excluding the blind region
+    RooDataSet *lowSideband = (RooDataSet*)data->reduce(Form("CMS_hgg_mass < %f", blind_low));
+    RooDataSet *highSideband = (RooDataSet*)data->reduce(Form("CMS_hgg_mass > %f", blind_high));
+    
+    // Create histograms using sideband data
+    TH1F *dataHistLow = (TH1F*)lowSideband->createHistogram("dataHistLow", *mass, RooFit::Binning((blind_low-mgg_low), mgg_low, blind_low));
+    TH1F *dataHistHigh = (TH1F*)highSideband->createHistogram("dataHistHigh", *mass, RooFit::Binning((mgg_high-blind_high), blind_high, mgg_high));
+    
+    // Create the final data histogram (covering the full range but empty in the signal region)
+    dataHist = new TH1F("dataHist", "Data Histogram", nBin, mgg_low, mgg_high);
+    
+    // Fill with sideband region data
+    for (int i = 1; i <= dataHistLow->GetNbinsX(); i++) {
+      dataHist->SetBinContent(i, dataHistLow->GetBinContent(i));
+      dataHist->SetBinError(i, dataHistLow->GetBinError(i));
+    }
+    
+    int offsetBin = int((blind_high - mgg_low) / (mgg_high - mgg_low) * nBin);
+    for (int i = 1; i <= dataHistHigh->GetNbinsX(); i++) {
+      dataHist->SetBinContent(i + offsetBin, dataHistHigh->GetBinContent(i));
+      dataHist->SetBinError(i + offsetBin, dataHistHigh->GetBinError(i));
+    }
+    
+    delete dataHistLow;
+    delete dataHistHigh;
+    delete lowSideband;
+    delete highSideband;
+  } else {
+    // If blinding is not enabled, use all data
+    dataHist = (TH1F*)data->createHistogram("dataHist", *mass, RooFit::Binning(nBin, mgg_low, mgg_high));
+  }
+  
+  // Generate histogram from PDF
+  TH1F *pdfHist = (TH1F*)pdf->createHistogram("pdfHist", *mass, RooFit::Binning(nBin, mgg_low, mgg_high));
+
+  
+  // If blinding is enabled, set the bins in the signal region of the PDF histogram to 0
+  if (BLIND) {
+    int lowBin = pdfHist->FindBin(blind_low);
+    int highBin = pdfHist->FindBin(blind_high);
+    for (int i = lowBin; i < highBin; i++) {
+      pdfHist->SetBinContent(i, 0);
+      dataHist->SetBinContent(i, 0);
+    }
+  }
+
+  // Renormalize
+  if (pdfHist->Integral() > 0) pdfHist->Scale(1.0/pdfHist->Integral());
+  if (dataHist->Integral() > 0) dataHist->Scale(1.0/dataHist->Integral());
+  
+  // Perform KS test
+  double ksProb = dataHist->KolmogorovTest(pdfHist, "");
+  
+  // Plot the KS test
+  TCanvas *canKS = new TCanvas("canKS", "canKS", 800, 600);
+  canKS->Divide(1, 2);
+  
+  // Top pad: histograms
+  canKS->cd(1);
+  dataHist->SetLineColor(kBlack);
+  dataHist->SetMarkerStyle(20);
+  dataHist->SetMarkerColor(kBlack);
+  dataHist->SetTitle("KS Test - Distributions");
+  dataHist->GetXaxis()->SetTitle("m_{#gamma#gamma} (GeV)");
+  dataHist->GetYaxis()->SetTitle("Normalized Events");
+  dataHist->Draw("E");
+  
+  pdfHist->SetLineColor(kBlue);
+  pdfHist->SetLineWidth(2);
+  pdfHist->Draw("HIST SAME");
+  
+  // If blinding is enabled, add a blinded region identifier
+  TBox *blindBox = NULL;
+  TBox *blindLeg = NULL;
+  if (BLIND) {
+    TBox *blindBox = new TBox(blind_low, 0, blind_high, dataHist->GetMaximum()*1.1);
+    blindBox->SetFillColorAlpha(kGray, 0.35);
+    blindBox->SetFillStyle(3004);
+    blindBox->Draw("same");
+    
+    TLegend *blindLeg = new TLegend(0.65, 0.65, 0.89, 0.75);
+    blindLeg->SetBorderSize(0);
+    blindLeg->SetFillStyle(0);
+    blindLeg->AddEntry(blindBox, "Blinded Region", "f");
+    blindLeg->Draw();
+  }
+  
+  TLegend *leg = new TLegend(0.65, 0.75, 0.89, 0.89);
+  leg->AddEntry(dataHist, "Data", "EP");
+  leg->AddEntry(pdfHist, "PDF", "L");
+  leg->AddEntry((TObject*)0, Form("KS Prob = %.4f", ksProb), "");
+  leg->SetBorderSize(0);
+  leg->SetFillStyle(0);
+  leg->Draw();
+  
+  // Bottom pad: cumulative distributions
+  canKS->cd(2);
+  
+  TH1F *dataCum = (TH1F*)dataHist->GetCumulative();
+  dataCum->SetLineColor(kBlack);
+  dataCum->SetMarkerStyle(20);
+  dataCum->SetMarkerColor(kBlack);
+  dataCum->SetTitle("KS Test - Cumulative Distributions");
+  dataCum->GetXaxis()->SetTitle("m_{#gamma#gamma} (GeV)");
+  dataCum->GetYaxis()->SetTitle("Cumulative Probability");
+  dataCum->Draw("E");
+  
+  TH1F *pdfCum = (TH1F*)pdfHist->GetCumulative();
+  pdfCum->SetLineColor(kBlue);
+  pdfCum->SetLineWidth(2);
+  pdfCum->Draw("HIST SAME");
+  
+  // Draw the maximum distance (KS statistic)
+  double maxDiff = 0;
+  int maxBin = 0;
+  for (int i = 1; i <= dataCum->GetNbinsX(); i++) {
+    double diff = fabs(dataCum->GetBinContent(i) - pdfCum->GetBinContent(i));
+    if (diff > maxDiff) {
+      maxDiff = diff;
+      maxBin = i;
+    }
+  }
+  
+  double xAtMax = dataCum->GetBinCenter(maxBin);
+  double y1 = dataCum->GetBinContent(maxBin);
+  double y2 = pdfCum->GetBinContent(maxBin);
+  
+  TArrow *arrow = new TArrow(xAtMax, y1, xAtMax, y2, 0.02, "|>");
+  arrow->SetLineColor(kRed);
+  arrow->SetLineWidth(2);
+  arrow->Draw();
+  
+  TLatex *lat = new TLatex();
+  lat->SetNDC();
+  lat->SetTextFont(42);
+  lat->SetTextSize(0.04);
+  lat->DrawLatex(0.15, 0.85, Form("KS statistic = %.4f", maxDiff));
+  
+  // If blinding is enabled, also mark the blind region on the cumulative plot
+  TBox *blindBoxCum = NULL;
+  if (BLIND) {
+    TBox *blindBoxCum = new TBox(blind_low, 0, blind_high, 1.1);
+    blindBoxCum->SetFillColorAlpha(kGray, 0.35);
+    blindBoxCum->SetFillStyle(3004);
+    blindBoxCum->Draw("same");
+  }
+  
+  canKS->SaveAs(Form("%s_KSTest.pdf", name.c_str()));
+  
+  delete canKS;
+  delete dataHist;
+  delete pdfHist;
+  delete dataCum;
+  delete pdfCum;
+  delete leg;
+  delete arrow;
+  delete lat;
+  if (BLIND) {
+    delete blindLeg;
+    delete blindBox;
+    delete blindBoxCum;
+  }
+  
+  return ksProb;
+}
+
 int main(int argc, char* argv[]){
  
   setTDRStyle();
@@ -635,6 +868,7 @@ int main(int argc, char* argv[]){
     ("is2011",                                                                                  "Run 2011 config")
     ("is2012",                                                                                  "Run 2012 config")
     ("unblind",  									        "Dont blind plots")
+    ("blindFit",                                                                               "Blind fits in signal region (120-130 GeV)")
     ("isFlashgg",  po::value<int>(&isFlashgg_)->default_value(1),  								    	        "Use Flashgg output ")
     ("isData",  po::value<bool>(&isData_)->default_value(0),  								    	        "Use Data not MC ")
 		("flashggCats,f", po::value<string>(&flashggCatsStr_)->default_value("UntaggedTag_0,UntaggedTag_1,UntaggedTag_2,UntaggedTag_3,UntaggedTag_4,VBFTag_0,VBFTag_1,VBFTag_2,TTHHadronicTag,TTHLeptonicTag,VHHadronicTag,VHTightTag,VHLooseTag,VHEtTag"),       "Flashgg category names to consider")
@@ -648,6 +882,7 @@ int main(int argc, char* argv[]){
   if (vm.count("help")) { cout << desc << endl; exit(1); }
   if (vm.count("is2011")) is2011=true;
 	if (vm.count("unblind")) BLIND=false;
+  if (vm.count("blindFit")) BLIND_FIT=true;
   saveMultiPdf = vm.count("saveMultiPdf");
 
   if (vm.count("verbose")) verbose=true;
@@ -726,6 +961,7 @@ int main(int argc, char* argv[]){
   functionClasses.push_back("BernsteinStepxGau");
   functionClasses.push_back("ExponentialStepxGau");
   functionClasses.push_back("PowerLawStepxGau");
+  functionClasses.push_back("ExpModGauss");
 	map<string,string> namingMap;
 	namingMap.insert(pair<string,string>("Bernstein","pol"));
 	namingMap.insert(pair<string,string>("Exponential","exp"));
@@ -735,6 +971,7 @@ int main(int argc, char* argv[]){
   namingMap.insert(pair<string,string>("ExponentialStepxGau","exp"));
   namingMap.insert(pair<string,string>("PowerLawStepxGau","pow"));
   namingMap.insert(pair<string,string>("LaurentStepxGau","lau"));
+  namingMap.insert(pair<string,string>("ExpModGauss","modgau"));
 
 	// store results here
 
@@ -868,8 +1105,14 @@ int main(int argc, char* argv[]){
 					cout << "[INFO]\t " << *funcType << " " << order << " " << prevNll << " " << thisNll << " " << chi2 << " " << prob << endl;
 					//fprintf(resFile,"%15s && %d && %10.2f && %10.2f && %10.2f \\\\\n",funcType->c_str(),order,thisNll,chi2,prob);
 					prevNll=thisNll;
-					cache_order=prev_order;
-					cache_pdf=prev_pdf;
+          if (prev_pdf==NULL) {
+            cache_pdf=bkgPdf;
+            cache_order=order;
+          }
+          else {
+            cache_pdf=prev_pdf;
+            cache_order=prev_order;
+          }
 					prev_order=order;
 					prev_pdf=bkgPdf;
           cout << "[INFO] \t " << *funcType << " " << cache_order << " " << prev_order << endl;
@@ -922,10 +1165,15 @@ int main(int argc, char* argv[]){
 						// Calculate goodness of fit for the thing to be included (will use toys for lowstats)!
 						double gofProb =0; 
 						plot(mass,bkgPdf,data,Form("%s/%s%d_cat%d.pdf",outDir.c_str(),funcType->c_str(),order,(cat+catOffset)),flashggCats_,fitStatus,&gofProb);
+                        
+            // Calculate KS test probability
+            double ksProb = getKSProb(mass, bkgPdf, data, Form("%s/%s%d_cat%d",outDir.c_str(),funcType->c_str(),order,(cat+catOffset)));
+            cout << "[INFO] \t KS test probability = " << ksProb << endl;
 
 						if ((prob < upperEnvThreshold) ) { // Looser requirements for the envelope
 
-							if (gofProb > 0.01 || order == truthOrder ) {  // Good looking fit or one of our regular truth functions
+							// if (gofProb > 0.01 || order == truthOrder ) {  // Good looking fit or one of our regular truth functions
+              if (gofProb > 0.1 && ksProb > 0.2) {  // Only good looking fit with acceptable KS test
 
 								std::cout << "[INFO] Adding to Envelope " << bkgPdf->GetName() << " "<< gofProb 
 									<< " 2xNLL + c is " << myNll + bkgPdf->getVariables()->getSize() << " truth order " << truthOrder << std::endl;
@@ -956,7 +1204,9 @@ int main(int argc, char* argv[]){
 		choices_vec.push_back(choices);
 		choices_envelope_vec.push_back(choices_envelope);
 		pdfs_vec.push_back(pdfs);
-
+    for (map<string,RooAbsPdf*>::iterator it=pdfs.begin(); it!=pdfs.end(); it++){
+      std::cout << "[INFO]  " << it->first << " " << it->second << std::endl;
+    }
 		plot(mass,pdfs,data,Form("%s/truths_cat%d",outDir.c_str(),(cat+catOffset)),flashggCats_,cat);
 
 		if (saveMultiPdf){

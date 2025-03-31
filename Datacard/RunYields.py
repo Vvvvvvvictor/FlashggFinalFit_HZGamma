@@ -49,6 +49,7 @@ options = od()
 options['cats'] = opt.cats
 options['inputWSDirMap'] = opt.inputWSDirMap
 options['procs'] = opt.procs
+options['flavs'] = 'ele,mu'
 options['ext'] = opt.ext
 options['mass'] = opt.mass
 options['sigModelWSDir'] = opt.sigModelWSDir

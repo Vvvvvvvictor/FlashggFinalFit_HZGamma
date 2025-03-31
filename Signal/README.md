@@ -65,7 +65,9 @@ If you do not wish to account for the photon systematics then this step can be s
 
 For other options when running `calcPhotonSyst`, see `./scripts/calcPhotonSyst` and add whatever you need to the `--modeOpts` string.
 
-## Extracting the efficiency x acceptance
+## Extracting the efficiency x acceptance(no need)
+
+**Note: This step is not necessary if you are using the HiggsDNA package which has already calculated the `(eff x acc)ij` values in weights.**
 
 The final models are normalised according to the following equation:
 ![equation](https://latex.codecogs.com/gif.latex?N_{ij}&space;=&space;(\sigma&space;\cdot&space;BR)_i&space;\times&space;(\epsilon&space;\cdot&space;\mathcal{A})_{ij}&space;\times&space;\mathcal{L})

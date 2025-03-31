@@ -12,6 +12,7 @@ signalScriptCfg = {
   'analysis':'fiducialAnalysis', # To specify which replacement dataset mapping (defined in ./python/replacementMap.py)
   'year':'%s'%_year, # Use 'combined' if merging all years: not recommended
   'massPoints':'120,125,130',
+  'flavours': 'ele,mu',
 
   #Photon shape systematics  
   'scales':'Scale,MuonPt', # separate nuisance per year

@@ -59,11 +59,12 @@ def writeSubFiles(_opts):
     if( _opts['mode'] == "signalFit" )&( not _opts['groupSignalFitJobsByCat'] ):
       for pidx in range(_opts['nProcs']):
         for cidx in range(_opts['nCats']):
-          pcidx = pidx*_opts['nCats']+cidx
-          p,c = _opts['procs'].split(",")[pidx], _opts['cats'].split(",")[cidx]
-          _f.write("if [ $1 -eq %g ]; then\n"%pcidx)
-          _f.write("  python %s/scripts/signalFit.py --inputWSDir %s --ext %s --proc %s --cat %s --year %s --analysis %s --massPoints %s --scales \'%s\' --scalesCorr \'%s\' --scalesGlobal \'%s\' --smears \'%s\' %s\n"%(swd__,_opts['inputWSDir'],_opts['ext'],p,c,_opts['year'],_opts['analysis'],_opts['massPoints'],_opts['scales'],_opts['scalesCorr'],_opts['scalesGlobal'],_opts['smears'],_opts['modeOpts']))
-          _f.write("fi\n")
+          for fidx in range(_opts['nFlavs']):
+            pcfidx = pidx*_opts['nCats']*_opts['nFlavs']+cidx*_opts['nFlavs']+fidx
+            p,c,f = _opts['procs'].split(",")[pidx], _opts['cats'].split(",")[cidx], _opts['flavours'].split(",")[fidx]
+            _f.write("if [ $1 -eq %g ]; then\n"%pcfidx)
+            _f.write("  python %s/scripts/signalFit.py --inputWSDir %s --ext %s --proc %s --cat %s --flav %s --year %s --analysis %s --massPoints %s --scales \'%s\' --scalesCorr \'%s\' --scalesGlobal \'%s\' --smears \'%s\' %s\n"%(swd__,_opts['inputWSDir'],_opts['ext'],p,c,f,_opts['year'],_opts['analysis'],_opts['massPoints'],_opts['scales'],_opts['scalesCorr'],_opts['scalesGlobal'],_opts['smears'],_opts['modeOpts']))
+            _f.write("fi\n")
    
     # For looping over categories
     elif( _opts['mode'] == "signalFit" )&( _opts['groupSignalFitJobsByCat'] ):
@@ -72,21 +73,25 @@ def writeSubFiles(_opts):
         _f.write("if [ $1 -eq %g ]; then\n"%cidx)
         for pidx in range(_opts['nProcs']):
           p = _opts['procs'].split(",")[pidx]
-          _f.write("  python %s/scripts/signalFit.py --inputWSDir %s --ext %s --proc %s --cat %s --year %s --analysis %s --massPoints %s --scales \'%s\' --scalesCorr \'%s\' --scalesGlobal \'%s\' --smears \'%s\' %s\n"%(swd__,_opts['inputWSDir'],_opts['ext'],p,c,_opts['year'],_opts['analysis'],_opts['massPoints'],_opts['scales'],_opts['scalesCorr'],_opts['scalesGlobal'],_opts['smears'],_opts['modeOpts']))
-        _f.write("fi\n")
+          for fidx in range(_opts['nFlavs']):
+            f = _opts['flavours'].split(",")[fidx]
+            _f.write("  python %s/scripts/signalFit.py --inputWSDir %s --ext %s --proc %s --cat %s --flav %s --year %s --analysis %s --massPoints %s --scales \'%s\' --scalesCorr \'%s\' --scalesGlobal \'%s\' --smears \'%s\' %s\n"%(swd__,_opts['inputWSDir'],_opts['ext'],p,c,f,_opts['year'],_opts['analysis'],_opts['massPoints'],_opts['scales'],_opts['scalesCorr'],_opts['scalesGlobal'],_opts['smears'],_opts['modeOpts']))
+            _f.write("fi\n")
 
+    # FIXME: add flavs to calcPhotonSyst file
     elif _opts['mode'] == "calcPhotonSyst":
       for cidx in range(_opts['nCats']):
         c = _opts['cats'].split(",")[cidx]
         _f.write("if [ $1 -eq %g ]; then\n"%cidx)
-        _f.write("  python %s/scripts/calcPhotonSyst.py --cat %s --procs %s --ext %s --inputWSDir %s --scales \'%s\' --scalesCorr \'%s\' --scalesGlobal \'%s\' --smears \'%s\' %s\n"%(swd__,c,_opts['procs'],_opts['ext'],_opts['inputWSDir'],_opts['scales'],_opts['scalesCorr'],_opts['scalesGlobal'],_opts['smears'],_opts['modeOpts']))
+        _f.write("  python %s/scripts/calcPhotonSyst.py --cat %s --flavs %s --procs %s --ext %s --inputWSDir %s --scales \'%s\' --scalesCorr \'%s\' --scalesGlobal \'%s\' --smears \'%s\' %s\n"%(swd__,c,_opts['flavours'],_opts['procs'],_opts['ext'],_opts['inputWSDir'],_opts['scales'],_opts['scalesCorr'],_opts['scalesGlobal'],_opts['smears'],_opts['modeOpts']))
         _f.write("fi\n")
 
+    # FIXME: add flavs to fTest file
     elif _opts['mode'] == "fTest":
       for cidx in range(_opts['nCats']):
         c = _opts['cats'].split(",")[cidx]
         _f.write("if [ $1 -eq %g ]; then\n"%cidx)
-        _f.write("  python %s/scripts/fTest.py --cat %s --procs %s --ext %s --inputWSDir %s %s\n"%(swd__,c,_opts['procs'],_opts['ext'],_opts['inputWSDir'],_opts['modeOpts']))
+        _f.write("  python %s/scripts/fTest.py --cat %s --flavs %s --procs %s --ext %s --inputWSDir %s %s\n"%(swd__,c,_opts['flavours'],_opts['procs'],_opts['ext'],_opts['inputWSDir'],_opts['modeOpts']))
         _f.write("fi\n")
 
     elif _opts['mode'] == "packageSignal":
@@ -95,10 +100,9 @@ def writeSubFiles(_opts):
         _f.write("if [ $1 -eq %g ]; then\n"%cidx)
         _f.write("  python %s/scripts/packageSignal.py --cat %s --outputExt %s --massPoints %s %s\n"%(swd__,c,_opts['ext'],_opts['massPoints'],_opts['modeOpts']))
         _f.write("fi\n")
-
     # For single script
     elif _opts['mode'] == 'getEffAcc':
-      _f.write("python %s/scripts/getEffAcc.py --inputWSDir %s --ext %s --procs %s --massPoints %s %s\n"%(swd__,_opts['inputWSDir'],_opts['ext'],_opts['procs'],_opts['massPoints'],_opts['modeOpts']))
+      _f.write("python %s/scripts/getEffAcc.py --inputWSDir %s --ext %s --procs %s --flavs %s --massPoints %s %s\n"%(swd__,_opts['inputWSDir'],_opts['ext'],_opts['procs'],_opts['flavours'],_opts['massPoints'],_opts['modeOpts']))
     elif _opts['mode'] == 'getDiagProc':
       _f.write("python %s/scripts/getDiagProc.py --inputWSDir %s --ext %s %s\n"%(swd__,_opts['inputWSDir'],_opts['ext'],_opts['modeOpts']))
       
@@ -109,7 +113,8 @@ def writeSubFiles(_opts):
     # Condor submission file
     _fsub = open("%s/%s.sub"%(_jobdir,_executable),"w")
     if _opts['mode'] == "signalFit": 
-      if( not _opts['groupSignalFitJobsByCat'] ): writeCondorSub(_fsub,_executable,_opts['queue'],_opts['nCats']*_opts['nProcs'],_opts['jobOpts'])
+      # FIXME: add flavs to writeCondorSub function
+      if( not _opts['groupSignalFitJobsByCat'] ): writeCondorSub(_fsub,_executable,_opts['queue'],_opts['nCats']*_opts['nProcs']*_opts['nFlavs'],_opts['jobOpts'])
       else: writeCondorSub(_fsub,_executable,_opts['queue'],_opts['nCats'],_opts['jobOpts'])
     elif( _opts['mode'] == "calcPhotonSyst" )|( _opts['mode'] == "fTest" )|( _opts['mode'] == "packageSignal" ): writeCondorSub(_fsub,_executable,_opts['queue'],_opts['nCats'],_opts['jobOpts'])
     elif( _opts['mode'] == "getEffAcc" )|( _opts['mode'] == "getDiagProc" ): writeCondorSub(_fsub,_executable,_opts['queue'],1,_opts['jobOpts'])
@@ -121,18 +126,21 @@ def writeSubFiles(_opts):
 
     # Write details depending on mode
 
+    # FIXME: add flavs to signalFit file
     # For separate submission file per process x category
     if( _opts['mode'] == "signalFit" )&( not _opts['groupSignalFitJobsByCat'] ):
       for pidx in range(_opts['nProcs']):
         for cidx in range(_opts['nCats']):
-          pcidx = pidx*_opts['nCats']+cidx
-          p,c = _opts['procs'].split(",")[pidx], _opts['cats'].split(",")[cidx]
-          _f = open("%s/%s_%g.sh"%(_jobdir,_executable,pcidx),"w")
-          writePreamble(_f)
-          _f.write("python %s/scripts/signalFit.py --inputWSDir %s --ext %s --proc %s --cat %s --year %s --analysis %s --massPoints %s --scales \'%s\' --scalesCorr \'%s\' --scalesGlobal \'%s\' --smears \'%s\' %s\n"%(swd__,_opts['inputWSDir'],_opts['ext'],p,c,_opts['year'],_opts['analysis'],_opts['massPoints'],_opts['scales'],_opts['scalesCorr'],_opts['scalesGlobal'],_opts['smears'],_opts['modeOpts']))
-          _f.close()
-          os.system("chmod 775 %s/%s_%g.sh"%(_jobdir,_executable,pcidx))
+          for fidx in range(_opts['nFlavs']):
+            pcfidx = pidx*_opts['nCats']*_opts['nFlavs']+cidx*_opts['nFlavs']+fidx
+            p,c,f = _opts['procs'].split(",")[pidx], _opts['cats'].split(",")[cidx], _opts['flavours'].split(",")[fidx]
+            _f = open("%s/%s_%g.sh"%(_jobdir,_executable,pcfidx),"w")
+            writePreamble(_f)
+            _f.write("python %s/scripts/signalFit.py --inputWSDir %s --ext %s --proc %s --cat %s --flav %s --year %s --analysis %s --massPoints %s --scales \'%s\' --scalesCorr \'%s\' --scalesGlobal \'%s\' --smears \'%s\' %s\n"%(swd__,_opts['inputWSDir'],_opts['ext'],p,c,f,_opts['year'],_opts['analysis'],_opts['massPoints'],_opts['scales'],_opts['scalesCorr'],_opts['scalesGlobal'],_opts['smears'],_opts['modeOpts']))
+            _f.close()
+            os.system("chmod 775 %s/%s_%g.sh"%(_jobdir,_executable,pcfidx))
 
+    # FIXME: add flavs to signalFit file
     # For separate submission file per category
     elif( _opts['mode'] == "signalFit" )&( _opts['groupSignalFitJobsByCat'] ):
       for cidx in range(_opts['nCats']):
@@ -141,7 +149,9 @@ def writeSubFiles(_opts):
         writePreamble(_f)
         for pidx in range(_opts['nProcs']):
           p = _opts['procs'].split(",")[pidx]
-          _f.write("python %s/scripts/signalFit.py --inputWSDir %s --ext %s --proc %s --cat %s --year %s --analysis %s --massPoints %s --scales \'%s\' --scalesCorr \'%s\' --scalesGlobal \'%s\' --smears \'%s\' %s\n\n"%(swd__,_opts['inputWSDir'],_opts['ext'],p,c,_opts['year'],_opts['analysis'],_opts['massPoints'],_opts['scales'],_opts['scalesCorr'],_opts['scalesGlobal'],_opts['smears'],_opts['modeOpts']))
+          for fidx in range(_opts['nFlavs']):
+            f = _opts['flavours'].split(",")[fidx]
+            _f.write("python %s/scripts/signalFit.py --inputWSDir %s --ext %s --proc %s --cat %s --flav %s --year %s --analysis %s --massPoints %s --scales \'%s\' --scalesCorr \'%s\' --scalesGlobal \'%s\' --smears \'%s\' %s\n\n"%(swd__,_opts['inputWSDir'],_opts['ext'],p,c,f,_opts['year'],_opts['analysis'],_opts['massPoints'],_opts['scales'],_opts['scalesCorr'],_opts['scalesGlobal'],_opts['smears'],_opts['modeOpts']))
         _f.close()
         os.system("chmod 775 %s/%s_%s.sh"%(_jobdir,_executable,c))
 
@@ -150,16 +160,17 @@ def writeSubFiles(_opts):
         c = _opts['cats'].split(",")[cidx]
         _f = open("%s/%s_%s.sh"%(_jobdir,_executable,c),"w")
         writePreamble(_f)
-        _f.write("python %s/scripts/calcPhotonSyst.py --cat %s --procs %s --ext %s --inputWSDir %s --scales \'%s\' --scalesCorr \'%s\' --scalesGlobal \'%s\' --smears \'%s\' %s\n"%(swd__,c,_opts['procs'],_opts['ext'],_opts['inputWSDir'],_opts['scales'],_opts['scalesCorr'],_opts['scalesGlobal'],_opts['smears'],_opts['modeOpts']))
+        _f.write("python %s/scripts/calcPhotonSyst.py --cat %s --flavs %s --procs %s --ext %s --inputWSDir %s --scales \'%s\' --scalesCorr \'%s\' --scalesGlobal \'%s\' --smears \'%s\' %s\n"%(swd__,c,_opts['flavours'],_opts['procs'],_opts['ext'],_opts['inputWSDir'],_opts['scales'],_opts['scalesCorr'],_opts['scalesGlobal'],_opts['smears'],_opts['modeOpts']))
         _f.close()
         os.system("chmod 775 %s/%s_%s.sh"%(_jobdir,_executable,c))
 
+    # FIXME: add flavs to fTest file
     elif _opts['mode'] == "fTest":
       for cidx in range(_opts['nCats']):
         c = _opts['cats'].split(",")[cidx]
         _f = open("%s/%s_%s.sh"%(_jobdir,_executable,c),"w")
         writePreamble(_f)
-        _f.write("python %s/scripts/fTest.py --cat %s --procs %s --ext %s --inputWSDir %s %s\n"%(swd__,c,_opts['procs'],_opts['ext'],_opts['inputWSDir'],_opts['modeOpts']))
+        _f.write("python %s/scripts/fTest.py --cat %s --flavs %s --procs %s --ext %s --inputWSDir %s %s\n"%(swd__,c,_opts['flavours'],_opts['procs'],_opts['ext'],_opts['inputWSDir'],_opts['modeOpts']))
         _f.close()
         os.system("chmod 775 %s/%s_%s.sh"%(_jobdir,_executable,c))
 
@@ -176,7 +187,7 @@ def writeSubFiles(_opts):
     elif _opts['mode'] == "getEffAcc":
       _f = open("%s/%s.sh"%(_jobdir,_executable),"w")
       writePreamble(_f)
-      _f.write("python %s/scripts/getEffAcc.py --inputWSDir %s --ext %s --procs %s --massPoints %s %s\n"%(swd__,_opts['inputWSDir'],_opts['ext'],_opts['procs'],_opts['massPoints'],_opts['modeOpts']))
+      _f.write("python %s/scripts/getEffAcc.py --inputWSDir %s --ext %s --procs %s --flavs %s --massPoints %s %s\n"%(swd__,_opts['inputWSDir'],_opts['ext'],_opts['procs'],_opts['flavours'],_opts['massPoints'],_opts['modeOpts']))
       _f.close()
       os.system("chmod 775 %s/%s.sh"%(_jobdir,_executable))
     elif _opts['mode'] == "getDiagProc":
@@ -209,10 +220,11 @@ def submitFiles(_opts):
     if( _opts['mode'] == "signalFit" )&( not _opts['groupSignalFitJobsByCat'] ):
       for pidx in range(_opts['nProcs']):
         for cidx in range(_opts['nCats']):
-          pcidx = pidx*_opts['nCats']+cidx
-          _subfile = "%s/%s_%g"%(_jobdir,_executable,pcidx)
-          cmdLine = "qsub -q hep.q %s -o %s.log -e %s.err %s.sh"%(jobOptsStr,_subfile,_subfile,_subfile)
-          run(cmdLine)
+          for fidx in range(_opts['nFlavs']):
+            pcfidx = pidx*_opts['nCats']*_opts['nFlavs']+cidx*_opts['nFlavs']+fidx
+            _subfile = "%s/%s_%g"%(_jobdir,_executable,pcfidx)
+            cmdLine = "qsub -q hep.q %s -o %s.log -e %s.err %s.sh"%(jobOptsStr,_subfile,_subfile,_subfile)
+            run(cmdLine)
     # Separate submission per category  
     elif( _opts['mode'] == "packageSignal" )|( _opts['mode'] == "fTest" )|( _opts['mode'] == "calcPhotonSyst" )|(( _opts['mode'] == "signalFit" )&( _opts['groupSignalFitJobsByCat'] )):
       for cidx in range(_opts['nCats']):
@@ -234,10 +246,11 @@ def submitFiles(_opts):
     if( _opts['mode'] == "signalFit" )&( not _opts['groupSignalFitJobsByCat'] ):
       for pidx in range(_opts['nProcs']):
         for cidx in range(_opts['nCats']):
-          pcidx = pidx*_opts['nCats']+cidx
-          _subfile = "%s/%s_%g"%(_jobdir,_executable,pcidx)
-          cmdLine = "bash %s.sh"%(_subfile)
-          run(cmdLine)
+          for fidx in range(_opts['nFlavs']):
+            pcfidx = pidx*_opts['nCats']*_opts['nFlavs']+cidx*_opts['nFlavs']+fidx
+            _subfile = "%s/%s_%g"%(_jobdir,_executable,pcfidx)
+            cmdLine = "bash %s.sh"%(_subfile)
+            run(cmdLine)
     # Separate submission per category  
     elif( _opts['mode'] == "packageSignal" )|( _opts['mode'] == "fTest" )|( _opts['mode'] == "calcPhotonSyst" )|(( _opts['mode'] == "signalFit" )&( _opts['groupSignalFitJobsByCat'] )):
       for cidx in range(_opts['nCats']):
@@ -252,4 +265,4 @@ def submitFiles(_opts):
       run(cmdLine)
     print "  --> Finished running files"
 
- 
+

@@ -55,6 +55,8 @@ class PdfModelBuilder {
     void saveWorkspace(TFile* file);
     void saveWorkspace(string filename);
 
+    RooAbsPdf *getDoubleCB();
+
     RooAbsPdf *getBernsteinStepxGau(string prefix, int order);
     RooAbsPdf *getExponentialStepxGau(string prefix, int order);
     RooAbsPdf *getPowerLawStepxGau(string prefix, int order);
@@ -70,6 +72,7 @@ class PdfModelBuilder {
     RooAbsPdf* getLaurentSeries(string prefix, int order);
     RooAbsPdf* getKeysPdf(string prefix);
     RooAbsPdf* getPdfFromFile(string &prefix);
+    RooAbsPdf* getExpModGaussian(string prefix);
 
   private:
    

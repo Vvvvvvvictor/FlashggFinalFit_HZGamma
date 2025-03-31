@@ -25,6 +25,7 @@ def get_options():
   parser.add_option("--xvar", dest='xvar', default='CMS_hgg_mass', help="Observable")
   parser.add_option("--cat", dest='cat', default='', help="RECO category")
   parser.add_option("--procs", dest='procs', default='', help="Signal processes")
+  parser.add_option("--flavs", dest='flavs', default='ele,mu', help="Flavours")
   parser.add_option("--ext", dest='ext', default='', help="Extension")
   parser.add_option("--inputWSDir", dest='inputWSDir', default='', help="Input flashgg WS directory")
   parser.add_option("--scales", dest='scales', default='', help="Photon shape systematics: scales")
@@ -102,7 +103,7 @@ def getRateVar(_hists):
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Define dataFrame
-columns_data = ['proc','cat','inputWSFile','nominalDataName']
+columns_data = ['proc','cat','flav','inputWSFile','nominalDataName']
 for stype in ['scales','scalesCorr','smears']:
   systs = getattr( opt, stype )
   for s in systs.split(","):
@@ -114,17 +115,18 @@ data = pd.DataFrame( columns=columns_data )
 for _proc in opt.procs.split(","):
   # Glob M125 filename
   _WSFileName = glob.glob("%s/output*M125*%s.root"%(opt.inputWSDir,_proc))[0]
-  if _proc.split("_")[-1] in ["i"]:
-  # if _proc.split("_")[-1] in ["in", "out"]:
-    _nominalDataName = "%s_%s_125_%s_%s"%(procToData(_proc.split("_")[0]),procToData(_proc.split("_")[-1]),sqrts__,opt.cat)
-  else:
-    _nominalDataName = "%s_125_%s_%s"%(procToData(_proc.split("_")[0]),sqrts__,opt.cat)
-  data = data.append({'proc':_proc,'cat':opt.cat,'inputWSFile':_WSFileName,'nominalDataName':_nominalDataName}, ignore_index=True, sort=False)
+  for _flav in opt.flavs.split(","):
+    if _proc.split("_")[-1] in ["i"]:
+    # if _proc.split("_")[-1] in ["in", "out"]:
+      _nominalDataName = "%s_%s_125_%s_%s_%s"%(procToData(_proc.split("_")[0]),procToData(_proc.split("_")[-1]),sqrts__,opt.cat,_flav)
+    else:
+      _nominalDataName = "%s_125_%s_%s_%s"%(procToData(_proc.split("_")[0]),sqrts__,opt.cat,_flav)
+    data = data.append({'proc':_proc,'cat':opt.cat,'flav':_flav,'inputWSFile':_WSFileName,'nominalDataName':_nominalDataName}, ignore_index=True, sort=False)
 
 # Loop over rows in dataFrame and open ws
 for ir,r in data.iterrows():
 
-  print " --> Processing (%s,%s)"%(r['proc'],opt.cat)
+  print " --> Processing (%s,%s,%s)"%(r['proc'],opt.cat,r['flav'])
 
   # Open ROOT file and extract workspace
   f = ROOT.TFile(r['inputWSFile'])

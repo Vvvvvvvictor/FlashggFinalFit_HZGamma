@@ -1,6 +1,19 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+## sample:
+# python /afs/cern.ch/user/s/shsong/CMSSW_10_6_20/src/flashggFinalFit/RunbiasStudy.py -d /afs/cern.ch/user/s/shsong/CMSSW_10_6_20/src/flashggFinalFit/Datacard/combine_run2/condor_input/Datacard_M1000_run2allcat.root  -t
+
+# python /afs/cern.ch/user/s/shsong/CMSSW_10_6_20/src/flashggFinalFit/RunbiasStudy.py -d /afs/cern.ch/user/s/shsong/CMSSW_10_6_20/src/flashggFinalFit/Datacard/combine_run2/condor_input/Datacard_M1000_run2allcat.root -f -c "--cminDefaultMinimizerStrategy 0 --X-rtd MINIMIZER_freezeDisassociatedParams --X-rtd MINIMIZER_multiMin_hideConstants --X-rtd MINIMIZER_multiMin_maskConstraints   --rMin -5 --rMax 5  --freezeParameters MH"
+# python /afs/cern.ch/user/s/shsong/CMSSW_10_6_20/src/flashggFinalFit/RunbiasStudy.py -d /afs/cern.ch/user/s/shsong/CMSSW_10_6_20/src/flashggFinalFit/Datacard/combine_run2/condor_input/Datacard_M1000_run2allcat.root -p --gaussianFit
 
 from biasUtils import *
+import matplotlib
+from array import array
+from os import *
+import matplotlib.pyplot as plt
+matplotlib.use('Agg')
+import json
 
 from optparse import OptionParser
 parser = OptionParser()
@@ -10,13 +23,14 @@ parser.add_option("-t","--toys",action="store_true", default=False)
 parser.add_option("-n","--nToys",default=1000,type="int")
 parser.add_option("-f","--fits",action="store_true", default=False)
 parser.add_option("-p","--plots",action="store_true", default=False)
-parser.add_option("-e","--expectSignal",default=1.,type="float")
+parser.add_option("-j","--jobName",default="fiducial",help="Job name for output directories")
+parser.add_option("-e","--expectSignal",default=1,type="float")
 parser.add_option("-m","--mH",default=125.,type="float")
 parser.add_option("-c","--combineOptions",default="")
-parser.add_option("-s","--seed",default=-1,type="int")
+parser.add_option("-s","--seed",default=12345,type="int")
 parser.add_option("--dryRun",action="store_true", default=False)
 parser.add_option("--poi",default="r")
-parser.add_option("--split",default=500,type="int")
+parser.add_option("--split",default=1000,type="int")
 parser.add_option("--selectFunction",default=None)
 parser.add_option("--gaussianFit",action="store_true", default=False)
 (opts,args) = parser.parse_args()
@@ -26,6 +40,8 @@ if opts.nToys>opts.split and not opts.nToys%opts.split==0: raise RuntimeError('T
 import ROOT as r
 r.gROOT.SetBatch(True)
 r.gStyle.SetOptStat(2211)
+
+sname=opts.datacard.split('.')[0]
 
 ws = r.TFile(opts.datacard).Get(opts.workspace)
 
@@ -56,70 +72,302 @@ for ipdf in range(multipdf.getNumPdfs()):
     indexNameMap[ipdf] = multipdf.getPdf(ipdf).GetName()
 
 if opts.toys:
-    if not path.isdir('BiasToysn'): system('mkdir -p BiasToys')
-    toyCmdBase = 'combine -m %.4f -d %s -M GenerateOnly --expectSignal %.4f -s %g --saveToys %s '%(opts.mH, opts.datacard, opts.expectSignal, opts.seed, opts.combineOptions)
+    if opts.jobName and not path.isdir(opts.jobName):
+        system('mkdir -p %s' % opts.jobName)
+    toysDir = '%sBiasToys' % (opts.jobName+'/' if opts.jobName else '')
+    if not path.isdir(toysDir): system('mkdir -p %s' % toysDir)
+    toyCmdBase = 'combine -m %.4f -d %s -M GenerateOnly  --toysNoSystematics --expectSignal %.4f -s %g --saveToys %s '%(opts.mH, opts.datacard, opts.expectSignal, opts.seed, opts.combineOptions)
     for ipdf,pdfName in indexNameMap.iteritems():
         name = shortName(pdfName)
+        print("name: ", toyName(name, jobName=opts.jobName))
         if opts.nToys > opts.split:
             for isplit in range(opts.nToys//opts.split):
                 toyCmd = toyCmdBase + ' -t %g -n _%s_split%g --setParameters %s=%g --freezeParameters %s'%(opts.split, name, isplit, indexName, ipdf, indexName)
                 run(toyCmd, dry=opts.dryRun)
-                system('mv higgsCombine_%s* %s'%(name, toyName(name,split=isplit)))
+                system('mv higgsCombine_%s* %s'%(name, toyName(name, split=isplit, jobName=opts.jobName)))
         else: 
             toyCmd = toyCmdBase + ' -t %g -n _%s --setParameters %s=%g --freezeParameters %s'%(opts.nToys, name, indexName, ipdf, indexName)
             run(toyCmd, dry=opts.dryRun)
-            system('mv higgsCombine_%s* %s'%(name, toyName(name)))
+            system('mv higgsCombine_%s* %s'%(name, toyName(name, jobName=opts.jobName)))
+        print "toy command line: ", toyCmd
 print
 
 if opts.fits:
-    if not path.isdir('BiasFits'): system('mkdir -p BiasFits')
+    if opts.jobName and not path.isdir(opts.jobName):
+        system('mkdir -p %s' % opts.jobName)
+    fitsDir = '%sBiasFits' % (opts.jobName+'/' if opts.jobName else '')
+    if not path.isdir(fitsDir): system('mkdir -p %s' % fitsDir)
     fitCmdBase = 'combine -m %.4f -d %s -M MultiDimFit -P %s --algo singles %s '%(opts.mH, opts.datacard, opts.poi, opts.combineOptions)
     for ipdf,pdfName in indexNameMap.iteritems():
         name = shortName(pdfName)
         if opts.nToys > opts.split:
             for isplit in range(opts.nToys//opts.split):
-                fitCmd = fitCmdBase + ' -t %g -n _%s_split%g --toysFile=%s'%(opts.split, name, isplit, toyName(name,split=isplit))
+                fitCmd = fitCmdBase + ' -t %g -n _%s_split%g --toysFile=%s'%(opts.split, name, isplit, toyName(name, split=isplit, jobName=opts.jobName))
                 run(fitCmd, dry=opts.dryRun)
-                system('mv higgsCombine_%s* %s'%(name, fitName(name,split=isplit)))
-            run('hadd %s BiasFits/*%s*split*.root'%(fitName(name),name), dry=opts.dryRun)
+                system('mv higgsCombine_%s* %s'%(name, fitName(name, split=isplit, jobName=opts.jobName)))
+            run('hadd %s BiasFits/*%s*split*.root'%(fitName(name, jobName=opts.jobName), name), dry=opts.dryRun)
         else:
-            fitCmd = fitCmdBase + ' -t %g -n _%s --toysFile=%s'%(opts.nToys, name, toyName(name))
+            fitCmd = fitCmdBase + ' -t %g -n _%s --toysFile=%s'%(opts.nToys, name, toyName(name, jobName=opts.jobName))
             run(fitCmd, dry=opts.dryRun)
-            system('mv higgsCombine_%s* %s'%(name, fitName(name)))
+            system('mv higgsCombine_%s* %s'%(name, fitName(name, jobName=opts.jobName)))
+        print "fit command line: ", fitCmd
 
 if opts.plots:
-    if not path.isdir('BiasPlots'): system('mkdir -p BiasPlots')
-    for ipdf,pdfName in indexNameMap.iteritems():
+    if opts.jobName and not path.isdir(opts.jobName):
+        system('mkdir -p %s' % opts.jobName)
+    plotsDir = '%sBiasPlots' % (opts.jobName+'/' if opts.jobName else '')
+    print "!!!!!!!!plotsDir: ", plotsDir
+    if not path.isdir(plotsDir): system('mkdir -p %s' % plotsDir)
+    pdfnames = []
+    means = []
+    mean_errors = []
+    sigmas = []
+    expectSignals = []
+    bias_data = {}
+    
+    for ipdf, pdfName in indexNameMap.iteritems():
         name = shortName(pdfName)
-        tfile = r.TFile(fitName(name))
+        tfile = r.TFile(fitName(name, jobName=opts.jobName))
         tree = tfile.Get('limit')
         pullHist = r.TH1F('pullsForTruth_%s'%name, 'Pull distribution using the envelope to fit %s'%name, 80, -4., 4.)
         pullHist.GetXaxis().SetTitle('Pull')
         pullHist.GetYaxis().SetTitle('Entries')
+        plotentry = []
+        
         for itoy in range(opts.nToys):
             tree.GetEntry(3*itoy)
-            if not getattr(tree,'quantileExpected')==-1: 
-                raiseFailError(itoy,True) 
+            if not getattr(tree, 'quantileExpected') == -1: 
+                raiseFailError(itoy, True) 
                 continue
             bf = getattr(tree, 'r')
             tree.GetEntry(3*itoy+1)
-            if not abs(getattr(tree,'quantileExpected')--0.32)<0.001: 
-                raiseFailError(itoy,True) 
+            if not abs(getattr(tree, 'quantileExpected') - -0.32) < 0.001: 
+                raiseFailError(itoy, True) 
                 continue
             lo = getattr(tree, 'r')
             tree.GetEntry(3*itoy+2)
-            if not abs(getattr(tree,'quantileExpected')-0.32)<0.001: 
-                raiseFailError(itoy,True) 
+            if not abs(getattr(tree, 'quantileExpected') - 0.32) < 0.001: 
+                raiseFailError(itoy, True) 
                 continue
             hi = getattr(tree, 'r')
             diff = bf - opts.expectSignal
             unc = 0.5 * (hi-lo)
             if unc > 0.: 
                 pullHist.Fill(diff/unc)
+                plotentry.append(diff/unc)
+                
+        sorted_entry = sorted(plotentry)
+        n = len(sorted_entry)
+        if n % 2 == 1:
+            median = sorted_entry[n // 2]
+        else:
+            middle1 = sorted_entry[n // 2 - 1]
+            middle2 = sorted_entry[n // 2]
+            median = (middle1 + middle2) / 2.0
+            
         canv = r.TCanvas()
         pullHist.Draw()
+        
+        mean = 0
+        mean_error = 0
+        sigma = 0
         if opts.gaussianFit:
-           r.gStyle.SetOptFit(111)
-           pullHist.Fit('gaus')
-        canv.SaveAs('%s.pdf'%plotName(name))
-        canv.SaveAs('%s.png'%plotName(name))
+            r.gStyle.SetOptFit(111)
+            pullHist.Fit('gaus')
+            fit_result = pullHist.GetFunction("gaus")
+            mean = fit_result.GetParameter(1)
+            mean_error = fit_result.GetParError(1)  # Get the fitting error of mean
+            sigma = fit_result.GetParameter(2)
+        else:
+            mean = pullHist.GetMean()
+            mean_error = pullHist.GetMeanError()  # Get the statistical error of mean
+            sigma = pullHist.GetRMS()
+            
+        pdfnames.append(pdfName)
+        means.append(mean)
+        mean_errors.append(mean_error)
+        sigmas.append(sigma)
+        expectSignals.append(opts.expectSignal)
+        
+        # Save mean, mean_error and sigma data for each function
+        bias_data[pdfName] = {
+            "mean": mean,
+            "mean_error": mean_error,
+            "sigma": sigma,
+            "expectSignal": opts.expectSignal
+        }
+        
+        canv.SaveAs('%s.pdf' % plotName(name, jobName=opts.jobName))
+        canv.SaveAs('%s.png' % plotName(name, jobName=opts.jobName))
+    
+    # # Save data to JSON file
+    # json_output = path.join(plotsDir, 'bias_results.json')  # Use path.join for safer path handling
+    # print "Bias results will be saved to: ", json_output
+    # with open(json_output, 'w') as json_file:
+    #     json.dump(bias_data, json_file, indent=4)
+    # print("Bias results saved to: %s" % json_output)
+    
+    # Create a new plot with mean on X-axis and expectSignal on Y-axis
+    canvas = r.TCanvas("canvas", "Bias Study", 800, 600)
+    canvas.SetGrid()
+    
+    # Set appropriate margins
+    canvas.SetLeftMargin(0.12)
+    canvas.SetRightMargin(0.05)
+    canvas.SetTopMargin(0.1)
+    canvas.SetBottomMargin(0.15)
+    
+    # Create a multi-graph to hold all individual graphs
+    mg = r.TMultiGraph()
+    mg.SetTitle("Bias Study Results")
+    
+    # Colors to use for different functions
+    colors = [r.kRed, r.kBlue, r.kGreen+2, r.kMagenta, r.kOrange+7, 
+             r.kCyan+2, r.kViolet-1, r.kSpring+5, r.kTeal+1, r.kYellow+2]
+    
+    # Marker styles to use
+    markers = [20, 21, 22, 23, 29, 33, 34, 47, 43, 39]
+    
+    # Create graphs for each function
+    graphs = []
+    
+    for i, (pdfname, mean, mean_error, sigma, expectSignal) in enumerate(zip(pdfnames, means, mean_errors, sigmas, expectSignals)):
+        # Create graph for this function
+        graph = r.TGraphErrors(1)
+        
+        # Choose color and marker style (cycle through if more functions than colors)
+        color_idx = i % len(colors)
+        marker_idx = i % len(markers)
+        
+        # Set point
+        graph.SetPoint(0, mean, expectSignal)
+        graph.SetPointError(0, mean_error, 0)  # x_err=mean_error, y_err=0
+        
+        # Set graph properties
+        graph.SetMarkerStyle(markers[marker_idx])
+        graph.SetMarkerSize(1.2)
+        graph.SetMarkerColor(colors[color_idx])
+        graph.SetLineColor(colors[color_idx])
+        graph.SetLineWidth(2)
+        
+        # Store reference to graph
+        graphs.append(graph)
+        
+        # Add to multigraph
+        mg.Add(graph)
+
+    # Calculate appropriate x-axis range
+    max_x = max([abs(m) for m in means]) * 1.2
+    
+    # Dynamically adjust y-axis range based on number of legend items
+    legend_items = len(pdfnames) + 2  # Number of functions + 2 color region descriptions
+    legend_height = legend_items * 0.06  # Each item takes more space    
+
+    # Calculate appropriate y-axis range
+    min_y = min(expectSignals) * 0.9  # Default lower limit
+    max_y = max(expectSignals) * (1.2 + legend_height)  # Default upper limit
+    
+    # Adjust y-axis minimum to ensure enough space for legend
+    legend_position_top = 0.9  # Legend top position (NDC coordinates)
+    legend_position_bottom = legend_position_top - legend_height
+    
+    # If legend is too large, adjust y-axis minimum
+    if legend_position_bottom < 0.2:  # Ensure bottom margin
+        min_y = min(expectSignals) * 0.5  # Further reduce y-axis minimum
+    
+    # Create an empty histogram as coordinate system frame
+    frame = r.TH2F("frame", "Bias Study Results", 100, -max_x, max_x, 100, min_y, max_y)
+    frame.SetStats(0)  # Turn off stats box
+    
+    # Set axis titles and properties
+    frame.GetXaxis().SetTitle("(#mu - #tilde{#mu})/#sigma")
+    frame.GetYaxis().SetTitle("Expected Signal (#mu)")
+    
+    # Increase title font size
+    frame.GetXaxis().SetTitleSize(0.05)
+    frame.GetYaxis().SetTitleSize(0.05)
+    frame.GetXaxis().SetLabelSize(0.045)
+    frame.GetYaxis().SetLabelSize(0.045)
+    frame.GetXaxis().SetTitleOffset(1.1)
+    frame.GetYaxis().SetTitleOffset(1.1)
+    
+    # Draw frame
+    frame.Draw()
+    
+    # Get current plotting area y-axis range
+    y_min = frame.GetYaxis().GetXmin()
+    y_max = frame.GetYaxis().GetXmax()
+    
+    # Add color regions
+    # Light yellow region (-0.2, 0.2)
+    yellow_box = r.TBox(-0.2, y_min, 0.2, y_max)
+    yellow_box.SetFillColorAlpha(r.kYellow, 0.3)
+    yellow_box.Draw("same")
+    
+    # Light green region (-0.14, 0.14)
+    green_box = r.TBox(-0.14, y_min, 0.14, y_max)
+    green_box.SetFillColorAlpha(r.kGreen, 0.3)
+    green_box.Draw("same")
+    
+    # Set canvas to transparent mode
+    canvas.SetFillStyle(0)
+    
+    # Draw each graph individually instead of using TMultiGraph
+    for graph in graphs:
+        graph.SetFillStyle(0)  # Set graph fill to transparent
+        graph.Draw("P same")  # Draw each graph separately
+    
+    # Create legend
+    # Dynamically adjust legend position and size based on number of items
+    legend_width = 0.4
+    legend = r.TLegend(0.15, legend_position_bottom, 0.15 + legend_width, legend_position_top)
+    legend.SetBorderSize(0)
+    legend.SetFillStyle(0)
+    legend.SetTextSize(0.04)  # Increase legend text size
+    
+    # Add entries for each function
+    for i, (graph, pdfname) in enumerate(zip(graphs, pdfnames)):
+        # Use short name for better display
+        short_name = shortName(pdfname)
+        legend.AddEntry(graph, short_name, "p")
+        
+    # Add entries for color regions
+    legend.AddEntry(yellow_box, "Bias < 2%", "f")
+    legend.AddEntry(green_box, "Bias < 1%", "f")
+    legend.Draw("same")
+    
+    # Add CMS Preliminary label
+    cms_text = r.TLatex()
+    cms_text.SetNDC()
+    cms_text.SetTextFont(61)
+    cms_text.SetTextSize(0.06)  # Larger text
+    cms_text.DrawLatex(0.15, 0.92, "CMS")
+    
+    prelim_text = r.TLatex()
+    prelim_text.SetNDC()
+    prelim_text.SetTextFont(52)
+    prelim_text.SetTextSize(0.045)  # Larger text
+    prelim_text.DrawLatex(0.26, 0.92, "Preliminary")
+    
+    # Add bias value text
+    bias_text = r.TLatex()
+    bias_text.SetNDC()
+    bias_text.SetTextFont(42)
+    bias_text.SetTextSize(0.035)  # Larger text
+    
+    # Calculate text box position and size
+    text_x = 0.65
+    text_y_top = 0.85
+    text_y_step = 0.045  # Larger spacing
+    
+    for i, (pdfname, mean, mean_error) in enumerate(zip(pdfnames, means, mean_errors)):
+        short_name = shortName(pdfname)
+        bias_text.DrawLatex(text_x, text_y_top-i*text_y_step, "%s: %.3f #pm %.3f" % (short_name, mean, mean_error))
+    
+    # Save graph
+    canvas.Update()
+    output_name = '%s/bias_summary' % plotsDir
+    canvas.SaveAs('%s.png' % output_name)
+    canvas.SaveAs('%s.pdf' % output_name)
+    
+    print("Bias summary plot saved to: %s.png/pdf" % output_name)

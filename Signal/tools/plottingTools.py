@@ -78,7 +78,7 @@ def getEffSigma(_h):
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Ftest: plots
 # Plot possible nGauss fits and chi2 values
-def plotFTest(ssfs,_opt=1,_outdir='./',_extension='',_proc='',_cat='',_mass='125'):
+def plotFTest(ssfs,_opt=1,_outdir='./',_extension='',_proc='',_cat='',_flav='',_mass='125'):
   canv = ROOT.TCanvas()
   canv.SetLeftMargin(0.15)
   LineColorMap = {'1':ROOT.kAzure+1,'2':ROOT.kRed-4,'3':ROOT.kGreen+2,'4':ROOT.kMagenta-9,'5':ROOT.kOrange}
@@ -93,7 +93,7 @@ def plotFTest(ssfs,_opt=1,_outdir='./',_extension='',_proc='',_cat='',_mass='125
     else: hists[k].SetLineWidth(1)
     hists[k].SetLineColor(LineColorMap[k.split("_")[-1]])
     hists[k].SetTitle("")
-    hists[k].GetXaxis().SetTitle("m_{#gamma#gamma} [GeV]")
+    hists[k].GetXaxis().SetTitle("m_{#ell#ell#gamma} [GeV]")
     hists[k].SetMinimum(0)
     if hists[k].GetMaximum()>hmax: hmax = hists[k].GetMaximum()
     if hists[k].GetMinimum()<hmin: hmin = hists[k].GetMinimum()
@@ -106,7 +106,7 @@ def plotFTest(ssfs,_opt=1,_outdir='./',_extension='',_proc='',_cat='',_mass='125
   hists['data'].SetMarkerColor(1)
   hists['data'].SetLineColor(1)
   hists['data'].SetTitle("")
-  hists['data'].GetXaxis().SetTitle("m_{#gamma#gamma} [GeV]")
+  hists['data'].GetXaxis().SetTitle("m_{#ell#ell#gamma} [GeV]")
   hists['data'].SetMinimum(0)
   hists['data'].GetXaxis().SetRangeUser(115,140)
   if hists['data'].GetMaximum()>hmax: hmax = hists['data'].GetMaximum()
@@ -136,14 +136,14 @@ def plotFTest(ssfs,_opt=1,_outdir='./',_extension='',_proc='',_cat='',_mass='125
   lat.SetTextAlign(31)
   lat.SetNDC()
   lat.SetTextSize(0.03)
-  lat.DrawLatex(0.9,0.92,"( %s , %s , %s )"%(_extension,_proc,_cat))
+  lat.DrawLatex(0.88,0.92,"( %s , %s , %s , %s)"%(_extension,_proc,_cat,_flav))
 
   canv.Update()
-  canv.SaveAs("%s/fTest_%s_%s_%s.png"%(_outdir,_cat,_proc,_extension))
-  canv.SaveAs("%s/fTest_%s_%s_%s.pdf"%(_outdir,_cat,_proc,_extension))
+  canv.SaveAs("%s/fTest_%s_%s_%s_%s.png"%(_outdir,_cat,_proc,_flav,_extension))
+  canv.SaveAs("%s/fTest_%s_%s_%s_%s.pdf"%(_outdir,_cat,_proc,_flav,_extension))
 
 # Plot reduced chi2 vs nGauss
-def plotFTestResults(ssfs,_opt,_outdir="./",_extension='',_proc='',_cat='',_mass='125'):
+def plotFTestResults(ssfs,_opt,_outdir="./",_extension='',_proc='',_cat='',_flav='',_mass='125'):
   canv = ROOT.TCanvas()
   gr = ROOT.TGraph()
   # Loop over nGuassians
@@ -185,16 +185,16 @@ def plotFTestResults(ssfs,_opt,_outdir="./",_extension='',_proc='',_cat='',_mass
   lat.SetTextAlign(31)
   lat.SetNDC()
   lat.SetTextSize(0.03)
-  lat.DrawLatex(0.9,0.92,"( %s , %s , %s )"%(_extension,_proc,_cat))
+  lat.DrawLatex(0.88,0.92,"( %s , %s , %s , %s)"%(_extension,_proc,_cat,_flav))
   lat.DrawLatex(0.6,0.75,"Optimum N_{gauss} = %s"%_opt)
   canv.Update()
-  canv.SaveAs("%s/fTest_%s_%s_%s_chi2_vs_nGauss.png"%(_outdir,_cat,_proc,_extension))
-  canv.SaveAs("%s/fTest_%s_%s_%s_chi2_vs_nGauss.pdf"%(_outdir,_cat,_proc,_extension))
+  canv.SaveAs("%s/fTest_%s_%s_%s_%s_chi2_vs_nGauss.png"%(_outdir,_cat,_proc,_flav,_extension))
+  canv.SaveAs("%s/fTest_%s_%s_%s_%s_chi2_vs_nGauss.pdf"%(_outdir,_cat,_proc,_flav,_extension))
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Signal fit plots
 # Plot final pdf at MH = 125 (with data) + individual Pdf components
-def plotPdfComponents(ssf,_outdir='./',_extension='',_proc='',_cat=''):
+def plotPdfComponents(ssf,_outdir='./',_extension='',_proc='',_cat='',_flav=''):
   canv = ROOT.TCanvas()
   canv.SetLeftMargin(0.15)
   ssf.MH.setVal(125)
@@ -273,7 +273,7 @@ def plotPdfComponents(ssf,_outdir='./',_extension='',_proc='',_cat=''):
   lat.SetTextAlign(31)
   lat.SetNDC()
   lat.SetTextSize(0.03)
-  lat.DrawLatex(0.9,0.92,"( %s , %s , %s )"%(ssf.name,_proc,_cat))
+  lat.DrawLatex(0.88,0.92,"( %s , %s , %s ,%s)"%(ssf.name,_proc,_cat,_flav))
   lat1 = ROOT.TLatex()
   lat1.SetTextFont(42)
   lat1.SetTextAlign(11)
@@ -282,8 +282,8 @@ def plotPdfComponents(ssf,_outdir='./',_extension='',_proc='',_cat=''):
   lat1.DrawLatex(0.65,0.3,"#chi^{2}/n(dof) = %.4f"%(ssf.getChi2()/ssf.Ndof))
 
   canv.Update()
-  canv.SaveAs("%s/%sshape_pdf_components_%s_%s.png"%(_outdir,_extension,_proc,_cat))
-  canv.SaveAs("%s/%sshape_pdf_components_%s_%s.pdf"%(_outdir,_extension,_proc,_cat))
+  canv.SaveAs("%s/%sshape_pdf_components_%s_%s_%s.png"%(_outdir,_extension,_proc,_cat,_flav))
+  canv.SaveAs("%s/%sshape_pdf_components_%s_%s_%s.pdf"%(_outdir,_extension,_proc,_cat,_flav))
 
 # Plot final pdf for each mass point
 def plotInterpolation(_finalModel,_outdir='./',_massPoints='120,121,122,123,124,125,126,127,128,129,130'):

@@ -24,6 +24,7 @@
 
 #include "../interface/PdfModelBuilder.h"
 
+#include "HiggsAnalysis/GBRLikelihood/interface/RooDoubleCBFast.h"
 #include "RooGaussModel.h"
 #include "RooFFTConvPdf.h"
 
@@ -51,6 +52,7 @@ PdfModelBuilder::PdfModelBuilder():
   recognisedPdfTypes.push_back("Laurent");
   recognisedPdfTypes.push_back("KeysPdf");
   recognisedPdfTypes.push_back("File");
+  recognisedPdfTypes.push_back("ExpModGaussian");
 
   wsCache = new RooWorkspace("PdfModelBuilderCache");
 
@@ -74,6 +76,18 @@ void PdfModelBuilder::setSignalModifierVal(float val){
 
 void PdfModelBuilder::setSignalModifierConstant(bool val){
   signalModifier->setConstant(val);
+}
+
+RooAbsPdf* PdfModelBuilder::getDoubleCB(){
+  RooRealVar *mean = new RooRealVar("mean", "mean", 125, 120, 130);
+  RooRealVar *sigma = new RooRealVar("sigma", "sigma", 2, 0.1, 10);
+  RooRealVar *alpha1 = new RooRealVar("alpha1", "alpha1", 1, 0.1, 10);
+  RooRealVar *n1 = new RooRealVar("n1", "n1", 2, 0.1, 10);
+  RooRealVar *alpha2 = new RooRealVar("alpha2", "alpha2", 1, 0.1, 10);
+  RooRealVar *n2 = new RooRealVar("n2", "n2", 2, 0.1, 10);
+
+  RooDoubleCBFast *doubleCB = new RooDoubleCBFast("doubleCB", "Double Sided Crystal Ball", *obs_var, *mean, *sigma, *alpha1, *n1, *alpha2, *n2);
+  return doubleCB;
 }
 
 RooAbsPdf* PdfModelBuilder::getChebychev(string prefix, int order){
@@ -182,7 +196,7 @@ RooAbsPdf *PdfModelBuilder::getLaurentStepxGau(string prefix, int order){
   if (order > 7) return NULL;
   RooRealVar *mean = new RooRealVar(Form("%s_mean", prefix.c_str()), Form("%s_mean", prefix.c_str()), 0.);
   RooRealVar *sigma = new RooRealVar(Form("%s_sigma", prefix.c_str()), Form("%s_sigma", prefix.c_str()), 5., 1., 10.);
-  RooRealVar *step = new RooRealVar(Form("%s_step", prefix.c_str()), Form("%s_step", prefix.c_str()), 105., 100., 120.);
+  RooRealVar *step = new RooRealVar(Form("%s_step", prefix.c_str()), Form("%s_step", prefix.c_str()), 101., 95., 120.);
   RooArgList formulaArgs;
   string formula = "1e-20+(@0 > @1)*(";
 
@@ -463,6 +477,35 @@ RooAbsPdf* PdfModelBuilder::getPdfFromFile(string &prefix){
   return pdf;
 }
 
+RooAbsPdf* PdfModelBuilder::getExpModGaussian(string prefix){
+  // Define parameters: mu, sigma and lambda
+  RooRealVar *mu = new RooRealVar(Form("%s_mu",prefix.c_str()), Form("%s_mu",prefix.c_str()), 105., 100., 120.);
+  RooRealVar *sigma = new RooRealVar(Form("%s_sigma",prefix.c_str()), Form("%s_sigma",prefix.c_str()), 3., 1., 10.); // Adjusted lower limit
+  RooRealVar *lambda = new RooRealVar(Form("%s_lambda",prefix.c_str()), Form("%s_lambda",prefix.c_str()), 0.1, 0.001, 0.5); // Keep upper limit limited for stability
+  
+  // Add parameters to the params map
+  params.insert(pair<string,RooRealVar*>(Form("%s_mu",prefix.c_str()), mu));
+  params.insert(pair<string,RooRealVar*>(Form("%s_sigma",prefix.c_str()), sigma));
+  params.insert(pair<string,RooRealVar*>(Form("%s_lambda",prefix.c_str()), lambda));
+  
+  // Create list of dependent variables
+  RooArgList formulaVars;
+  formulaVars.add(*obs_var);    // x
+  formulaVars.add(*mu);         // mu
+  formulaVars.add(*sigma);      // sigma
+  formulaVars.add(*lambda);     // lambda
+  
+  // Advanced formula with protection for both fitting and plotting
+  // The formula has several safety features to prevent numerical issues:、、
+  // 1. The exponent is constrained to prevent overflow
+  string formula = "(@3/2) * exp(min(20.0, (@3/2) * (2*@1 + @3*@2*@2 - 2*@0))) * TMath::Erfc(((@1 + @3*@2*@2 - @0)/(sqrt(2)*@2)))";
+  
+  // Create RooGenericPdf with the stabilized formula
+  RooGenericPdf *emg = new RooGenericPdf(prefix.c_str(), "Exponentially Modified Gaussian", formula.c_str(), formulaVars);
+  
+  return emg;
+}
+
 RooAbsPdf* PdfModelBuilder::getExponentialSingle(string prefix, int order){
   
   if (order%2==0){
@@ -521,6 +564,7 @@ void PdfModelBuilder::addBkgPdf(string type, int nParams, string name, bool cach
   if (type=="Laurent") pdf = getLaurentSeries(name,nParams);
   if (type=="KeysPdf") pdf = getKeysPdf(name);
   if (type=="File") pdf = getPdfFromFile(name);
+  if (type=="ExpModGaussian") pdf = getExpModGaussian(name);
 
   if (cache) {
     wsCache->import(*pdf);
@@ -860,4 +904,44 @@ void PdfModelBuilder::saveWorkspace(string filename){
 void PdfModelBuilder::saveWorkspace(TFile *file){
   file->cd();
   wsCache->Write();
+}
+
+RooAbsPdf* getPdf(PdfModelBuilder &pdfsModel, string type, int order, const char* ext=""){
+  
+  if (type=="Bernstein") return pdfsModel.getBernstein(Form("%s_bern%d",ext,order),order); 
+  else if (type=="Chebychev") return pdfsModel.getChebychev(Form("%s_cheb%d",ext,order),order); 
+  else if (type=="Exponential") return pdfsModel.getExponentialSingle(Form("%s_exp%d",ext,order),order); 
+  else if (type=="PowerLaw") return pdfsModel.getPowerLawSingle(Form("%s_pow%d",ext,order),order); 
+  else if (type=="Laurent") return pdfsModel.getLaurentSeries(Form("%s_lau%d",ext,order),order);
+  else if (type=="BernsteinStepxGau") {
+    RooAbsPdf* pdf = pdfsModel.getBernsteinStepxGau(Form("%s_bern%d",ext,order),order);
+    if (!pdf) std::cout << "[ERROR] Failed to create BernsteinStepxGau order " << order << std::endl;
+    return pdf;
+  } 
+  else if (type=="ExponentialStepxGau") {
+    RooAbsPdf* pdf = pdfsModel.getExponentialStepxGau(Form("%s_exp%d",ext,order),order);
+    if (!pdf) std::cout << "[ERROR] Failed to create ExponentialStepxGau order " << order << " (only odd orders <7 allowed)" << std::endl;
+    return pdf;
+  } 
+  else if (type=="PowerLawStepxGau") {
+    RooAbsPdf* pdf = pdfsModel.getPowerLawStepxGau(Form("%s_pow%d",ext,order),order);
+    if (!pdf) std::cout << "[ERROR] Failed to create PowerLawStepxGau order " << order << " (only odd orders <7 allowed)" << std::endl;
+    return pdf;
+  } 
+  else if (type=="LaurentStepxGau") {
+    RooAbsPdf* pdf = pdfsModel.getLaurentStepxGau(Form("%s_lau%d",ext,order),order);
+    if (!pdf) std::cout << "[ERROR] Failed to create LaurentStepxGau order " << order << " (only orders <7 allowed)" << std::endl;
+    return pdf;
+  }
+  else if (type=="ExpModGauss"){
+    if (order > 1) {
+      std::cout << "[ERROR] ExpModGauss does not support orders > 1" << std::endl;
+      return NULL;
+    }
+    else return pdfsModel.getExpModGaussian(Form("%s_expmodgauss",ext));
+  }
+  else {
+    cerr << "[ERROR] -- getPdf() -- type " << type << " not recognised." << endl;
+    return NULL;
+  }
 }

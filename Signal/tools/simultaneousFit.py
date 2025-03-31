@@ -149,10 +149,11 @@ def nChi2Addition(X,ssf,verbose=False):
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~   
 class SimultaneousFit:
   # Constructor
-  def __init__(self,_name,_proc,_cat,_datasetForFit,_xvar,_MH,_MHLow,_MHHigh,_massPoints,_nBins,_MHPolyOrder,_minimizerMethod,_minimizerTolerance,verbose=True):
+  def __init__(self,_name,_proc,_cat,_flav,_datasetForFit,_xvar,_MH,_MHLow,_MHHigh,_massPoints,_nBins,_MHPolyOrder,_minimizerMethod,_minimizerTolerance,verbose=True):
     self.name = _name
     self.proc = _proc
     self.cat = _cat
+    self.flav = _flav
     self.datasetForFit = _datasetForFit
     self.xvar = _xvar
     self.MH = _MH
@@ -221,6 +222,57 @@ class SimultaneousFit:
       # Convert to RooDataHist
       self.DataHists[k] = ROOT.RooDataHist("%s_hist"%d.GetName(),"%s_hist"%d.GetName(),ROOT.RooArgSet(self.xvar),drw)
   
+  # # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~   
+  # def buildDCBplusGaussian(self,_recursive=True):
+
+  #   # DCB
+  #   # Define polynominal functions (in dMH)
+  #   for f in ['dm','sigma','n1','n2','a1','a2']: 
+  #     k = "%s_dcb"%f
+  #     self.Varlists[k] = ROOT.RooArgList("%s_coeffs"%k)
+  #     # Create coeff for polynominal of order MHPolyOrder: y = a+bx+cx^2+...
+  #     for po in range(0,self.MHPolyOrder+1):
+  #       self.Vars['%s_p%g'%(k,po)] = ROOT.RooRealVar("%s_p%g"%(k,po),"%s_p%g"%(k,po),pLUT['DCB']["%s_p%s"%(f,po)][0],pLUT['DCB']["%s_p%s"%(f,po)][1],pLUT['DCB']["%s_p%s"%(f,po)][2])
+	# self.Varlists[k].add( self.Vars['%s_p%g'%(k,po)] ) 
+  #     # Define polynominal
+  #     self.Polynomials[k] = ROOT.RooPolyVar(k,k,self.dMH,self.Varlists[k])
+  #   # Mean function
+  #   self.Polynomials['mean_dcb'] = ROOT.RooFormulaVar("mean_dcb","mean_dcb","(@0+@1)",ROOT.RooArgList(self.MH,self.Polynomials['dm_dcb']))
+  #   # Build DCB
+  #   self.Pdfs['dcb'] = ROOT.RooDoubleCBFast("dcb","dcb",self.xvar,self.Polynomials['mean_dcb'],self.Polynomials['sigma_dcb'],self.Polynomials['a1_dcb'],self.Polynomials['n1_dcb'],self.Polynomials['a2_dcb'],self.Polynomials['n2_dcb'])
+
+  #   # Gaussian
+  #   # Define polynomial function for sigma (in dMH). Gaussian defined to have same mean as DCB
+  #   f = "sigma"
+  #   k = "%s_gaus"%f
+  #   self.Varlists[k] = ROOT.RooArgList("%s_coeffs"%k)    
+  #   # Create coeff for polynominal of order MHPolyOrder: y = a+bx+cx^2+...
+  #   for po in range(0,self.MHPolyOrder+1):
+  #     self.Vars['%s_p%g'%(k,po)] = ROOT.RooRealVar("%s_p%g"%(k,po),"%s_p%g"%(k,po),pLUT['Gaussian_wdcb']["%s_p%s"%(f,po)][0],pLUT['Gaussian_wdcb']["%s_p%s"%(f,po)][1],pLUT['Gaussian_wdcb']["%s_p%s"%(f,po)][2])
+  #     self.Varlists[k].add( self.Vars['%s_p%g'%(k,po)] )
+  #   # Define polynomial
+  #   self.Polynomials[k] = ROOT.RooPolyVar(k,k,self.dMH,self.Varlists[k])
+  #   # Build Gaussian
+  #   self.Pdfs['gaus'] = ROOT.RooGaussian("gaus","gaus",self.xvar,self.Polynomials['mean_dcb'],self.Polynomials['sigma_gaus'])
+    
+        
+  #   # Relative fraction: also polynomial of order MHPolyOrder
+  #   self.Varlists['frac'] = ROOT.RooArgList("frac_coeffs")
+  #   for po in range(0,self.MHPolyOrder+1):
+  #     self.Vars['frac_p%g'%po] = ROOT.RooRealVar("frac_p%g"%po,"frac_p%g"%po,pLUT['Frac']['p%g'%po][0],pLUT['Frac']['p%g'%po][1],pLUT['Frac']['p%g'%po][2])
+  #     self.Varlists['frac'].add( self.Vars['frac_p%g'%po] )
+  #   # Define Polynomial
+  #   self.Polynomials['frac'] = ROOT.RooPolyVar('frac','frac',self.dMH,self.Varlists['frac'])
+  #   # Constrain fraction to not be above 1 or below 0
+  #   self.Polynomials['frac_constrained'] = ROOT.RooFormulaVar("frac_constrained","frac_constrained","(@0>0)*(@0<1)*@0+(@0>1.0)*0.9999",ROOT.RooArgList(self.Polynomials['frac']))
+  #   self.Coeffs['frac_constrained'] = self.Polynomials['frac_constrained' ]
+
+  #   # Define total PDF
+  #   _pdfs, _coeffs = ROOT.RooArgList(), ROOT.RooArgList()
+  #   for pdf in ['dcb','gaus']: _pdfs.add(self.Pdfs[pdf])
+  #   _coeffs.add(self.Coeffs['frac_constrained'])
+  #   self.Pdfs['final'] = ROOT.RooAddPdf("%s_%s"%(self.proc,self.cat),"%s_%s"%(self.proc,self.cat),_pdfs,_coeffs,_recursive)
+
   # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~   
   def buildDCBplusGaussian(self,_recursive=True):
 
@@ -239,39 +291,9 @@ class SimultaneousFit:
     self.Polynomials['mean_dcb'] = ROOT.RooFormulaVar("mean_dcb","mean_dcb","(@0+@1)",ROOT.RooArgList(self.MH,self.Polynomials['dm_dcb']))
     # Build DCB
     self.Pdfs['dcb'] = ROOT.RooDoubleCBFast("dcb","dcb",self.xvar,self.Polynomials['mean_dcb'],self.Polynomials['sigma_dcb'],self.Polynomials['a1_dcb'],self.Polynomials['n1_dcb'],self.Polynomials['a2_dcb'],self.Polynomials['n2_dcb'])
-
-    # Gaussian
-    # Define polynomial function for sigma (in dMH). Gaussian defined to have same mean as DCB
-    f = "sigma"
-    k = "%s_gaus"%f
-    self.Varlists[k] = ROOT.RooArgList("%s_coeffs"%k)    
-    # Create coeff for polynominal of order MHPolyOrder: y = a+bx+cx^2+...
-    for po in range(0,self.MHPolyOrder+1):
-      self.Vars['%s_p%g'%(k,po)] = ROOT.RooRealVar("%s_p%g"%(k,po),"%s_p%g"%(k,po),pLUT['Gaussian_wdcb']["%s_p%s"%(f,po)][0],pLUT['Gaussian_wdcb']["%s_p%s"%(f,po)][1],pLUT['Gaussian_wdcb']["%s_p%s"%(f,po)][2])
-      self.Varlists[k].add( self.Vars['%s_p%g'%(k,po)] )
-    # Define polynomial
-    self.Polynomials[k] = ROOT.RooPolyVar(k,k,self.dMH,self.Varlists[k])
-    # Build Gaussian
-    self.Pdfs['gaus'] = ROOT.RooGaussian("gaus","gaus",self.xvar,self.Polynomials['mean_dcb'],self.Polynomials['sigma_gaus'])
     
-        
-    # Relative fraction: also polynomial of order MHPolyOrder
-    self.Varlists['frac'] = ROOT.RooArgList("frac_coeffs")
-    for po in range(0,self.MHPolyOrder+1):
-      self.Vars['frac_p%g'%po] = ROOT.RooRealVar("frac_p%g"%po,"frac_p%g"%po,pLUT['Frac']['p%g'%po][0],pLUT['Frac']['p%g'%po][1],pLUT['Frac']['p%g'%po][2])
-      self.Varlists['frac'].add( self.Vars['frac_p%g'%po] )
-    # Define Polynomial
-    self.Polynomials['frac'] = ROOT.RooPolyVar('frac','frac',self.dMH,self.Varlists['frac'])
-    # Constrain fraction to not be above 1 or below 0
-    self.Polynomials['frac_constrained'] = ROOT.RooFormulaVar("frac_constrained","frac_constrained","(@0>0)*(@0<1)*@0+(@0>1.0)*0.9999",ROOT.RooArgList(self.Polynomials['frac']))
-    self.Coeffs['frac_constrained'] = self.Polynomials['frac_constrained' ]
+    self.Pdfs['final'] = self.Pdfs['dcb']
 
-    # Define total PDF
-    _pdfs, _coeffs = ROOT.RooArgList(), ROOT.RooArgList()
-    for pdf in ['dcb','gaus']: _pdfs.add(self.Pdfs[pdf])
-    _coeffs.add(self.Coeffs['frac_constrained'])
-    self.Pdfs['final'] = ROOT.RooAddPdf("%s_%s"%(self.proc,self.cat),"%s_%s"%(self.proc,self.cat),_pdfs,_coeffs,_recursive)
-    
   # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~   
   def buildNGaussians(self,nGaussians,_recursive=True):
 
@@ -320,7 +342,7 @@ class SimultaneousFit:
     for g in range(0,nGaussians): 
       _pdfs.add(self.Pdfs['gaus_g%g'%g])
       if g < nGaussians-1: _coeffs.add(self.Coeffs['frac_g%g_constrained'%g])
-    self.Pdfs['final'] = ROOT.RooAddPdf("%s_%s"%(self.proc,self.cat),"%s_%s"%(self.proc,self.cat),_pdfs,_coeffs,_recursive)
+    self.Pdfs['final'] = ROOT.RooAddPdf("%s_%s_%s"%(self.proc,self.cat,self.flav),"%s_%s_%s"%(self.proc,self.cat,self.flav),_pdfs,_coeffs,_recursive)
     
   # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~   
   def runFit(self):

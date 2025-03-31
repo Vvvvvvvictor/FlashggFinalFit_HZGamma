@@ -25,6 +25,7 @@ def get_options():
   parser.add_option('--inputWSDir', dest='inputWSDir', default='', help='Input WS directory')
   parser.add_option('--ext', default='test', help='Extension (to define analysis)')
   parser.add_option('--procs', dest='procs', default='', help='Signal processes')
+  parser.add_option('--flavs', dest='flavs', default='ele,mu', help='Flavours')
   parser.add_option('--massPoints', dest='massPoints', default='120,125,130', help='MH')
   parser.add_option('--skipCOWCorr', dest='skipCOWCorr', default=False, action="store_true", help="Skip centralObjectWeight correction for events in acceptance")
   parser.add_option('--doSTXSFractions', dest='doSTXSFractions', default=False, action="store_true", help="Fractional cross sections in each STXS bin (per stage0 process)")
@@ -41,8 +42,8 @@ else:
   leave()
 
 # Define dataframe to store yields: cow = centralObjectWeight
-if opt.skipCOWCorr: columns_data = ['massPoint','proc','cat','granular_key','nominal_yield']
-else: columns_data = ['massPoint','proc','cat','granular_key','nominal_yield','nominal_yield_COWCorr']
+if opt.skipCOWCorr: columns_data = ['massPoint','proc','cat','flav','granular_key','nominal_yield']
+else: columns_data = ['massPoint','proc','cat','flav','granular_key','nominal_yield','nominal_yield_COWCorr']
 data = pd.DataFrame( columns=columns_data )
 
 # Loop over mass points: write separate json file for each masspoint
@@ -58,27 +59,28 @@ for _mp in opt.massPoints.split(","):
 
     # Loop over categories
     for _cat in allCats.split(","):
-      nominalDataName = "%s_%s_%s_%s"%(procToData(_proc.split("_")[0]),_mp,sqrts__,_cat)
-      _granular_key = "%s__%s"%(_proc,_cat)
-      nominalData = inputWS.data(nominalDataName)
-      _nominal_yield = nominalData.sumEntries()
-      # Central Object Weight corrections (for events in acceptance)
-      if not opt.skipCOWCorr:
-        # Loop over events and sum w/ centralObjectWeight
-        _nominal_yield_COWCorr = 0
-        for i in range(nominalData.numEntries()):
-	  p = nominalData.get(i)
-	  w = nominalData.weight()
-	  f_COWCorr, f_NNLOPS = p.getRealValue("centralObjectWeight"), abs(p.getRealValue("NNLOPSweight"))
-	  # If NNLOPS weight does not exist, set to 1
-	  if not f_NNLOPS: f_NNLOPS = 1.
-	  # Skip event with 0 centralObjectWeight
-	  if f_COWCorr == 0: continue
-	  else: _nominal_yield_COWCorr += w*(f_NNLOPS/f_COWCorr)
+      for _flav in opt.flavs.split(","):
+        nominalDataName = "%s_%s_%s_%s_%s"%(procToData(_proc.split("_")[0]),_mp,sqrts__,_cat,_flav
+        _granular_key = "%s_%s_%s"%(_proc,_cat,_flav)
+        nominalData = inputWS.data(nominalDataName)
+        _nominal_yield = nominalData.sumEntries()
+        # Central Object Weight corrections (for events in acceptance)
+        if not opt.skipCOWCorr:
+          # Loop over events and sum w/ centralObjectWeight
+          _nominal_yield_COWCorr = 0
+          for i in range(nominalData.numEntries()):
+            p = nominalData.get(i)
+            w = nominalData.weight()
+            f_COWCorr, f_NNLOPS = p.getRealValue("centralObjectWeight"), abs(p.getRealValue("NNLOPSweight"))
+            # If NNLOPS weight does not exist, set to 1
+            if not f_NNLOPS: f_NNLOPS = 1.
+            # Skip event with 0 centralObjectWeight
+            if f_COWCorr == 0: continue
+            else: _nominal_yield_COWCorr += w*(f_NNLOPS/f_COWCorr)
 
-      # Add entry to dataframe
-      if opt.skipCOWCorr: data.loc[len(data)] = [_mp,_proc,_cat,_granular_key,_nominal_yield]
-      else: data.loc[len(data)] = [_mp,_proc,_cat,_granular_key,_nominal_yield,_nominal_yield_COWCorr]
+        # Add entry to dataframe
+        if opt.skipCOWCorr: data.loc[len(data)] = [_mp,_proc,_cat,_flav,_granular_key,_nominal_yield]
+        else: data.loc[len(data)] = [_mp,_proc,_cat,_flav,_granular_key,_nominal_yield,_nominal_yield_COWCorr]
 
     # Garbage removal
     inputWS.Delete()

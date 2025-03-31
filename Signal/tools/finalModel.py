@@ -75,15 +75,16 @@ def initialiseXSBR():
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~   
 class FinalModel:
   # Constructor
-  def __init__(self,_ssfMap,_proc,_cat,_ext,_year,_sqrts,_datasets,_xvar,_MH,_MHLow,_MHHigh,_massPoints,_xsbrMap,_procSyst,_scales,_scalesCorr,_scalesGlobal,_smears,_doVoigtian,_useDCB,_skipVertexScenarioSplit,_skipSystematics,_doEffAccFromJson):
+  def __init__(self,_ssfMap,_proc,_cat,_flav,_ext,_year,_sqrts,_datasets,_xvar,_MH,_MHLow,_MHHigh,_massPoints,_xsbrMap,_procSyst,_scales,_scalesCorr,_scalesGlobal,_smears,_doVoigtian,_useDCB,_skipVertexScenarioSplit,_skipSystematics,_doEffAccFromJson):
     self.ssfMap = _ssfMap
     self.proc = _proc
     self.procSyst = _procSyst # Signal process used for systematics (useful for low stat cases)
     self.cat = _cat
+    self.flav = _flav
     self.ext = _ext
     self.year = _year
     self.sqrts = _sqrts
-    self.name = "%s_%s_%s_%s"%(self.proc,self.year,self.cat,self.sqrts)
+    self.name = "%s_%s_%s_%s_%s"%(self.proc,self.year,self.cat,self.flav,self.sqrts)
     self.datasets = _datasets
     self.xvar = _xvar
     self.aset = ROOT.RooArgSet(self.xvar)
@@ -160,7 +161,7 @@ class FinalModel:
           print " --> [ERROR] effAcc json file (%s) does not exist for mass point = %s. Run getEffAcc first."%(jfname,mp)
           sys.exit(1)
         with open(jfname,'r') as jf: ea_data = json.load(jf)
-        ea.append(float(ea_data['%s__%s'%(self.proc,self.cat)]))
+        ea.append(float(ea_data['%s_%s_%s'%(self.proc,self.cat,self.flav)]))
       else:
         sumw = self.datasets[mp].sumEntries()
         ea.append(sumw) 
@@ -278,23 +279,28 @@ class FinalModel:
       self.Pdfs['dcb_%s'%extStr] = ROOT.RooDoubleCBFast("dcb_%s"%extStr,"dcb_%s"%extStr,self.xvar,self.Functions["mean_dcb_%s"%extStr],self.Functions["sigma_dcb_%s"%extStr],self.Splines['a1_dcb_%s'%extStr],self.Splines['n1_dcb_%s'%extStr],self.Splines['a2_dcb_%s'%extStr],self.Splines['n2_dcb_%s'%extStr])
       
       # + Gaussian: shares mean with DCB
-      self.Splines['sigma_gaus_%s'%extStr] = ssf.Splines['sigma_gaus'].Clone()
-      self.Splines['sigma_gaus_%s'%extStr].SetName("sigma_fit_gaus_%s"%extStr)
-      self.buildSigma('sigma_gaus_%s'%extStr,skipSystematics=self.skipSystematics)
-      if self.doVoigtian:
-        self.Pdfs['gaus_%s'%extStr] = ROOT.RooVoigtian("gaus_%s"%extStr,"gaus_%s"%extStr,self.xvar,self.Functions["mean_dcb_%s"%extStr],self.GammaH,self.Functions["sigma_gaus_%s"%extStr])
+      if 'sigma_gaus' in ssf.Splines and 'frac_constrained' in ssf.Splines:
+        # Original DCB+Gaussian model
+        self.Splines['sigma_gaus_%s'%extStr] = ssf.Splines['sigma_gaus'].Clone()
+        self.Splines['sigma_gaus_%s'%extStr].SetName("sigma_fit_gaus_%s"%extStr)
+        self.buildSigma('sigma_gaus_%s'%extStr,skipSystematics=self.skipSystematics)
+        if self.doVoigtian:
+          self.Pdfs['gaus_%s'%extStr] = ROOT.RooVoigtian("gaus_%s"%extStr,"gaus_%s"%extStr,self.xvar,self.Functions["mean_dcb_%s"%extStr],self.GammaH,self.Functions["sigma_gaus_%s"%extStr])
+        else:
+          self.Pdfs['gaus_%s'%extStr] = ROOT.RooGaussian("gaus_%s"%extStr,"gaus_%s"%extStr,self.xvar,self.Functions["mean_dcb_%s"%extStr],self.Functions["sigma_gaus_%s"%extStr])
+
+        # Fraction
+        self.Splines['frac_%s'%extStr] = ssf.Splines['frac_constrained'].Clone()
+        self.Splines['frac_%s'%extStr].SetName("frac_%s"%extStr)
+
+        # Define total pdf - DCB + Gaussian
+        _pdfs, _coeffs = ROOT.RooArgList(), ROOT.RooArgList()
+        for pdf in ['dcb','gaus']: _pdfs.add(self.Pdfs['%s_%s'%(pdf,extStr)])
+        _coeffs.add(self.Splines['frac_%s'%extStr])
+        self.Pdfs[ext] = ROOT.RooAddPdf("%s_%s"%(outputWSObjectTitle__,extStr),"%s_%s"%(outputWSObjectTitle__,extStr),_pdfs,_coeffs,_recursive)
       else:
-        self.Pdfs['gaus_%s'%extStr] = ROOT.RooGaussian("gaus_%s"%extStr,"gaus_%s"%extStr,self.xvar,self.Functions["mean_dcb_%s"%extStr],self.Functions["sigma_gaus_%s"%extStr])
-
-      # Fraction
-      self.Splines['frac_%s'%extStr] = ssf.Splines['frac_constrained'].Clone()
-      self.Splines['frac_%s'%extStr].SetName("frac_%s"%extStr)
-
-      # Define total pdf
-      _pdfs, _coeffs = ROOT.RooArgList(), ROOT.RooArgList()
-      for pdf in ['dcb','gaus']: _pdfs.add(self.Pdfs['%s_%s'%(pdf,extStr)])
-      _coeffs.add(self.Splines['frac_%s'%extStr])
-      self.Pdfs[ext] = ROOT.RooAddPdf("%s_%s"%(outputWSObjectTitle__,extStr),"%s_%s"%(outputWSObjectTitle__,extStr),_pdfs,_coeffs,_recursive)
+        # Use only DCB model, similar to the simplified version in simultaneousFit.py
+        self.Pdfs[ext] = self.Pdfs['dcb_%s'%extStr]
 
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # For nGaussians:
@@ -422,4 +428,4 @@ class FinalModel:
     wsout.imp(self.Functions['final_normThisLumi'],ROOT.RooFit.RecycleConflictNodes())
     wsout.imp(self.Pdfs['final_extend'],ROOT.RooFit.RecycleConflictNodes())
     wsout.imp(self.Pdfs['final_extendThisLumi'],ROOT.RooFit.RecycleConflictNodes())
-    for d in self.Datasets.itervalues(): wsout.imp(d) 
+    for d in self.Datasets.itervalues(): wsout.imp(d)

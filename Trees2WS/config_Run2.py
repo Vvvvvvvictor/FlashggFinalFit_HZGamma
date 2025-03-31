@@ -5,7 +5,7 @@ trees2wsCfg = {
   'inputTreeDir':'DiphotonTree',
 
   # Variables to be added to dataframe: use wildcard * for common strings
-  'mainVars':["CMS_hgg_mass","weight","weight_central","dZ","*Up","*Down", "*central"],
+  'mainVars':["CMS_hgg_mass","weight","dZ"],#,"weight_central","*Up","*Down", "*central"],
   'dataVars':["CMS_hgg_mass","weight"], # Vars to be added for data
   'stxsVar':'',
   'notagVars':[], # Vars to add to NOTAG RooDataset
@@ -18,5 +18,6 @@ trees2wsCfg = {
   #'systematics': [''],
 
   # Analysis categories: python list of cats or use 'auto' to extract from input tree
-  'cats':'auto'
+  'cats':'auto',
+  'flavs':'ele,mu'
 }

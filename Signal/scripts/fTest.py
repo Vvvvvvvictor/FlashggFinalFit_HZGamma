@@ -33,6 +33,7 @@ def get_options():
   parser.add_option("--procs", dest='procs', default='', help="Signal processes")
   parser.add_option("--nProcsToFTest", dest='nProcsToFTest', default=10, type='int',help="Number of signal processes to fTest (ordered by sum entries), others are set to nRV=1,nWV=1. Set to -1 to run over all")
   parser.add_option("--cat", dest='cat', default='', help="RECO category")
+  parser.add_option("--flavs", dest='flavs', default='ele,mu', help="Flavours")
   parser.add_option('--mass', dest='mass', default='125', help="Mass point to fit")
   parser.add_option('--doPlots', dest='doPlots', default=False, action="store_true", help="Produce Signal fTest plots")
   parser.add_option('--nBins', dest='nBins', default=80, type='int', help="Number of bins for fit")
@@ -66,25 +67,26 @@ MH.setUnit("GeV")
 MH.setConstant(True)
 
 # Loop over processes: extract sum entries and fill dict. Default nRV,nWV = 1,1
-df = pd.DataFrame(columns=['proc','sumEntries','nRV','nWV'])
+df = pd.DataFrame(columns=['proc','flav','sumEntries','nRV','nWV'])
 procYields = od()
 for proc in opt.procs.split(","):
   WSFileName = glob.glob("%s/output*M%s*%s.root"%(opt.inputWSDir,opt.mass,proc))[0]
   f = ROOT.TFile(WSFileName,"read")
   inputWS = f.Get(inputWSName__)
-  print("inputWS", inputWS)
-  print("%s_%s_%s_%s"%(procToData(proc.split("_")[0]),opt.mass,sqrts__,opt.cat))
-  print(aset)
-  print("what proc", proc)
-  print("what kind", proc.split("_")[0])
-  print("this,", inputWS.data("%s_%s_%s_%s"%(procToData(proc.split("_")[0]),opt.mass,sqrts__,opt.cat)))
-  print("a?", "%s_%s_%s_%s"%(procToData(proc.split("_")[0]),opt.mass,sqrts__,opt.cat))
-  if proc.split("_")[-1] in ["i"]:
-  # if proc.split("_")[-1] in ["in", "out"]:
-    d = reduceDataset(inputWS.data("%s_%s_%s_%s_%s"%(procToData(proc.split("_")[0]),procToData(proc.split("_")[-1]),opt.mass,sqrts__,opt.cat)),aset)
-  else:
-    d = reduceDataset(inputWS.data("%s_%s_%s_%s"%(procToData(proc.split("_")[0]),opt.mass,sqrts__,opt.cat)),aset)
-  df.loc[len(df)] = [proc,d.sumEntries(),1,1]
+  for flav in opt.flavs.split(","):
+    print("inputWS", inputWS)
+    print("%s_%s_%s_%s_%s"%(procToData(proc.split("_")[0]),opt.mass,flav,sqrts__,opt.cat))
+    print(aset)
+    print("what proc", proc)
+    print("what kind", proc.split("_")[0])
+    print("this,", inputWS.data("%s_%s_%s_%s_%s"%(procToData(proc.split("_")[0]),opt.mass,flav,sqrts__,opt.cat)))
+    print("a?", "%s_%s_%s_%s_%s"%(procToData(proc.split("_")[0]),opt.mass,flav,sqrts__,opt.cat))
+    if proc.split("_")[-1] in ["i"]:
+    # if proc.split("_")[-1] in ["in", "out"]:
+      d = reduceDataset(inputWS.data("%s_%s_%s_%s_%s_%s"%(procToData(proc.split("_")[0]),procToData(proc.split("_")[-1]),opt.mass,flav,sqrts__,opt.cat)),aset)
+    else:
+      d = reduceDataset(inputWS.data("%s_%s_%s_%s_%s"%(procToData(proc.split("_")[0]),opt.mass,flav,sqrts__,opt.cat)),aset)
+    df.loc[len(df)] = [proc,flav,d.sumEntries(),1,1]
   inputWS.Delete()
   f.Close()
 
@@ -100,63 +102,67 @@ for pidx, proc in enumerate(procsToFTest):
   WSFileName = glob.glob("%s/output*M%s*%s.root"%(opt.inputWSDir,opt.mass,proc))[0]
   f = ROOT.TFile(WSFileName,"read")
   inputWS = f.Get(inputWSName__)
-  if proc.split("_")[-1] in ["i"]:
-  # if proc.split("_")[-1] in ["in", "out"]:
-    d = reduceDataset(inputWS.data("%s_%s_%s_%s_%s"%(procToData(proc.split("_")[0]),procToData(proc.split("_")[-1]),opt.mass,sqrts__,opt.cat)),aset)
-  else:
-    d = reduceDataset(inputWS.data("%s_%s_%s_%s"%(procToData(proc.split("_")[0]),opt.mass,sqrts__,opt.cat)),aset)
-  datasets_RV[opt.mass] = splitRVWV(d,aset,mode="RV")
-  datasets_WV[opt.mass] = splitRVWV(d,aset,mode="WV")
+  for flav in opt.flavs.split(","):
+    if proc.split("_")[-1] in ["i"]:
+    # if proc.split("_")[-1] in ["in", "out"]:
+      d = reduceDataset(inputWS.data("%s_%s_%s_%s_%s_%s"%(procToData(proc.split("_")[0]),procToData(proc.split("_")[-1]),opt.mass,flav,sqrts__,opt.cat)),aset)
+    else:
+      d = reduceDataset(inputWS.data("%s_%s_%s_%s_%s"%(procToData(proc.split("_")[0]),opt.mass,flav,sqrts__,opt.cat)),aset)
+    datasets_RV[opt.mass] = splitRVWV(d,aset,mode="RV")
+    datasets_WV[opt.mass] = splitRVWV(d,aset,mode="WV")
 
-  # Run fTest: RV
-  # If numEntries below threshold then keep as n = 1
-  if datasets_RV[opt.mass].numEntries() < opt.threshold: continue  
-  else:
-    ssfs = od()
-    min_reduced_chi2, nGauss_opt = 999, 1
-    for nGauss in range(1,opt.nGaussMax+1):
-      k = "nGauss_%g"%nGauss
-      ssf = SimultaneousFit("fTest_RV_%g"%nGauss,proc,opt.cat,datasets_RV,xvar.Clone(),MH,MHLow,MHHigh,opt.mass,opt.nBins,0,opt.minimizerMethod,opt.minimizerTolerance,verbose=False)
-      ssf.buildNGaussians(nGauss)
-      ssf.runFit()
-      ssf.buildSplines()
-      if ssf.Ndof >= 1: 
-	ssfs[k] = ssf
-	if ssfs[k].getReducedChi2() < min_reduced_chi2: 
-	  min_reduced_chi2 = ssfs[k].getReducedChi2()
-	  nGauss_opt = nGauss
-	print "   * (%s,%s,RV): nGauss = %g, chi^2/n(dof) = %.4f"%(proc,opt.cat,nGauss,ssfs[k].getReducedChi2())
-    # Set optimum
-    df.loc[df['proc']==proc,'nRV'] = nGauss_opt
-    # Make plots
-    if( opt.doPlots )&( len(ssfs.keys())!=0 ):
-      plotFTest(ssfs,_opt=nGauss_opt,_outdir="%s/outdir_%s/fTest/Plots"%(swd__,opt.ext),_extension="RV",_proc=proc,_cat=opt.cat,_mass=opt.mass)
-      plotFTestResults(ssfs,_opt=nGauss_opt,_outdir="%s/outdir_%s/fTest/Plots"%(swd__,opt.ext),_extension="RV",_proc=proc,_cat=opt.cat,_mass=opt.mass)
+    # Run fTest: RV
+    # If numEntries below threshold then keep as n = 1
+    if datasets_RV[opt.mass].numEntries() < opt.threshold: continue  
+    else:
+      ssfs = od()
+      min_reduced_chi2, nGauss_opt = 999, 1
+      for nGauss in range(1,opt.nGaussMax+1):
+        k = "nGauss_%g"%nGauss
+        # FIXME add flav to SimultaneousFit function
+        ssf = SimultaneousFit("fTest_RV_%g"%nGauss,proc,opt.cat,flav,datasets_RV,xvar.Clone(),MH,MHLow,MHHigh,opt.mass,opt.nBins,0,opt.minimizerMethod,opt.minimizerTolerance,verbose=False)
+        ssf.buildNGaussians(nGauss)
+        ssf.runFit()
+        ssf.buildSplines()
+        if ssf.Ndof >= 1: 
+          ssfs[k] = ssf
+          if ssfs[k].getReducedChi2() < min_reduced_chi2: 
+            min_reduced_chi2 = ssfs[k].getReducedChi2()
+            nGauss_opt = nGauss
+          print "   * (%s,%s,%s,RV): nGauss = %g, chi^2/n(dof) = %.4f"%(proc,opt.cat,flav,nGauss,ssfs[k].getReducedChi2())
+      # Set optimum
+      df.loc[df['proc']==proc,'nRV'] = nGauss_opt
+      # Make plots
+      if( opt.doPlots )&( len(ssfs.keys())!=0 ):
+        # FIXME add flav to plotFTest and plotFTestResults functions
+        plotFTest(ssfs,_opt=nGauss_opt,_outdir="%s/outdir_%s/fTest/Plots"%(swd__,opt.ext),_extension="RV",_proc=proc,_cat=opt.cat,_flav=flav,_mass=opt.mass)
+        plotFTestResults(ssfs,_opt=nGauss_opt,_outdir="%s/outdir_%s/fTest/Plots"%(swd__,opt.ext),_extension="RV",_proc=proc,_cat=opt.cat,_flav=flav,_mass=opt.mass)
 
-  # Run fTest: WV
-  # If numEntries below threshold then keep as n = 1
-  if( datasets_WV[opt.mass].numEntries() < opt.threshold )|( opt.skipWV ): continue
-  else:
-    ssfs = od()
-    min_reduced_chi2, nGauss_opt = 999, 1
-    for nGauss in range(1,opt.nGaussMax+1):
-      k = "nGauss_%g"%nGauss
-      ssf = SimultaneousFit("fTest_WV_%g"%nGauss,proc,opt.cat,datasets_WV,xvar.Clone(),MH,MHLow,MHHigh,opt.mass,opt.nBins,0,opt.minimizerMethod,opt.minimizerTolerance,verbose=False)
-      ssf.buildNGaussians(nGauss)
-      ssf.runFit()
-      ssf.buildSplines()
-      if ssf.Ndof >= 1:
-	ssfs[k] = ssf
-	if ssfs[k].getReducedChi2() < min_reduced_chi2:
-	  min_reduced_chi2 = ssfs[k].getReducedChi2()
-	  nGauss_opt = nGauss
-	print "   * (%s,%s,WV): nGauss = %g, chi^2/n(dof) = %.4f"%(proc,opt.cat,nGauss,ssfs[k].getReducedChi2())
-    # Set optimum
-    df.loc[df['proc']==proc,'nWV'] = nGauss_opt
-    # Make plots
-    if( opt.doPlots )&( len(ssfs.keys())!=0 ):
-      plotFTest(ssfs,_opt=nGauss_opt,_outdir="%s/outdir_%s/fTest/Plots"%(swd__,opt.ext),_extension="WV",_proc=proc,_cat=opt.cat,_mass=opt.mass)
-      plotFTestResults(ssfs,_opt=nGauss_opt,_outdir="%s/outdir_%s/fTest/Plots"%(swd__,opt.ext),_extension="WV",_proc=proc,_cat=opt.cat,_mass=opt.mass)
+    # Run fTest: WV
+    # If numEntries below threshold then keep as n = 1
+    if( datasets_WV[opt.mass].numEntries() < opt.threshold )|( opt.skipWV ): continue
+    else:
+      ssfs = od()
+      min_reduced_chi2, nGauss_opt = 999, 1
+      for nGauss in range(1,opt.nGaussMax+1):
+        k = "nGauss_%g"%nGauss
+        # FIXME add flav to SimultaneousFit function
+        ssf = SimultaneousFit("fTest_WV_%g"%nGauss,proc,opt.cat,flav,datasets_WV,xvar.Clone(),MH,MHLow,MHHigh,opt.mass,opt.nBins,0,opt.minimizerMethod,opt.minimizerTolerance,verbose=False)
+        ssf.buildNGaussians(nGauss)
+        ssf.runFit()
+        ssf.buildSplines()
+        if ssf.Ndof >= 1:
+          ssfs[k] = ssf
+          if ssfs[k].getReducedChi2() < min_reduced_chi2:
+            min_reduced_chi2 = ssfs[k].getReducedChi2()
+            nGauss_opt = nGauss
+          print "   * (%s,%s,%s,WV): nGauss = %g, chi^2/n(dof) = %.4f"%(proc,opt.cat,flav,nGauss,ssfs[k].getReducedChi2())
+      # Set optimum
+      df.loc[df['proc']==proc,'nWV'] = nGauss_opt
+      # Make plots
+      if( opt.doPlots )&( len(ssfs.keys())!=0 ):
+        plotFTest(ssfs,_opt=nGauss_opt,_outdir="%s/outdir_%s/fTest/Plots"%(swd__,opt.ext),_extension="WV",_proc=proc,_cat=opt.cat,_flav=flav,_mass=opt.mass)
+        plotFTestResults(ssfs,_opt=nGauss_opt,_outdir="%s/outdir_%s/fTest/Plots"%(swd__,opt.ext),_extension="WV",_proc=proc,_cat=opt.cat,_flav=flav,_mass=opt.mass)
 
   # Close ROOT file
   inputWS.Delete()
@@ -169,7 +175,7 @@ ff.write("{\n")
 # Iterate over rows in dataframe: sorted by sumEntries
 pitr = 1
 for ir,r in df.sort_values('sumEntries',ascending=False).iterrows():
-  k = "\"%s__%s\""%(r['proc'],opt.cat)
+  k = "\"%s_%s_%s\""%(r['proc'],opt.cat,r['flav'])
   ff.write("    %-90s : {\"nRV\":%s,\"nWV\":%s}"%(k,r['nRV'],r['nWV']))
   # Drop comma for last proc
   if pitr == len(df): ff.write("\n")

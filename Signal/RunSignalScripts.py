@@ -46,6 +46,7 @@ if opt.inputConfig != '':
     options['analysis']     = _cfg['analysis']
     options['year']         = _cfg['year']
     options['massPoints']   = _cfg['massPoints']
+    options['flavours']      = _cfg['flavours']
     options['scales']       = _cfg['scales']
     options['scalesCorr']   = _cfg['scalesCorr']
     options['scalesGlobal'] = _cfg['scalesGlobal']
@@ -93,6 +94,9 @@ if options['cats'] == "auto":
   options['cats'] = extractListOfCats(WSFileNames)
 options['nCats'] = len(options['cats'].split(","))
 
+# Get lepton flavour
+options['nFlavs'] = len(options['flavours'].split(","))
+
 # Extract low and high MH values
 mps = []
 for mp in options['massPoints'].split(","): mps.append(int(mp))
@@ -102,6 +106,7 @@ options['massLow'], options['massHigh'] = '%s'%min(mps), '%s'%max(mps)
 print " --> Input flashgg ws dir: %s"%options['inputWSDir']
 print " --> Processes: %s"%options['procs']
 print " --> Categories: %s"%options['cats']
+print " --> Flavour: %s"%options['flavours']
 print " --> Mass points: %s --> Low = %s, High = %s"%(options['massPoints'],options['massLow'],options['massHigh'])
 print " --> Extension: %s"%options['ext']
 print " --> Analysis: %s"%options['analysis']

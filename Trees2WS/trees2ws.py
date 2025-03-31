@@ -9,6 +9,8 @@ import os, sys
 import re
 from optparse import OptionParser
 
+from pdb import set_trace as bp
+
 def get_options():
   parser = OptionParser()
   parser.add_option('--inputConfig',dest='inputConfig', default="", help='Input config: specify list of variables/systematics/analysis categories')
@@ -96,6 +98,7 @@ if opt.inputConfig != '':
     theoryWeightContainers = _cfg['theoryWeightContainers']
     systematics      = _cfg['systematics']
     cats             = _cfg['cats']
+    flavs            = _cfg['flavs']
 
   else:
     print "[ERROR] %s config file does not exist. Leaving..."%opt.inputConfig
@@ -126,7 +129,8 @@ if cats == 'auto':
     elif "NOTAG" in tn: continue
     elif "ERROR" in tn: continue
     c = tn.split("_%s_"%sqrts__)[-1].split(";")[0]
-    cats.append(c)
+    if c not in cats:  # only add unique categories
+      cats.append(c)
 
 if opt.doNOTAG:
   # Check if NOTAG tree exists
@@ -145,90 +149,93 @@ if opt.doSystematics: sdata = pandas.DataFrame()
 # Loop over categories: fill dataframe
 for cat in cats:
   print " --> Extracting events from category: %s"%cat
-  if inputTreeDir == '': treeName = "%s_%s_%s_%s"%(opt.productionMode,opt.inputMass,sqrts__,cat)
-  else: treeName = "%s/%s_%s_%s_%s"%(inputTreeDir,opt.productionMode,opt.inputMass,sqrts__,cat)
-  print "    * tree: %s"%treeName
-  # Extract tree from uproot
-  t = f[treeName]
-  if len(t) == 0: continue
-  
-  # Convert tree to pandas dataframe
-  dfs = {}
+  for flav in flavs.split(","):
+    print " --> Extracting events for flavour: %s"%flav
+    if inputTreeDir == '': treeName = "%s_%s_%s_%s_%s"%(opt.productionMode,opt.inputMass,flav,sqrts__,cat)
+    else: treeName = "%s/%s_%s_%s_%s_%s"%(inputTreeDir,opt.productionMode,opt.inputMass,flav,sqrts__,cat)
+    print "    * tree: %s"%treeName
+    # Extract tree from uproot
+    t = f[treeName]
+    if len(t) == 0: continue
+    
+    # Convert tree to pandas dataframe
+    dfs = {}
 
-  # Theory weights
-  for ts, tsColumns in theoryWeightColumns.iteritems():
-    if opt.productionMode in modesToSkipTheoryWeights: 
-      dfs[ts] = pandas.DataFrame(np.ones(shape=(len(t),theoryWeightContainers[ts])))
-    else:
-      #dfs[ts] = t.pandas.df(ts)
-      dfs[ts] = pandas.DataFrame(np.reshape(np.array(t[ts].array()),(len(t),len(tsColumns))))
-    dfs[ts].columns = tsColumns
+    # Theory weights
+    for ts, tsColumns in theoryWeightColumns.iteritems():
+      if opt.productionMode in modesToSkipTheoryWeights: 
+        dfs[ts] = pandas.DataFrame(np.ones(shape=(len(t),theoryWeightContainers[ts])))
+      else:
+        #dfs[ts] = t.pandas.df(ts)
+        dfs[ts] = pandas.DataFrame(np.reshape(np.array(t[ts].array()),(len(t),len(tsColumns))))
+      dfs[ts].columns = tsColumns
 
-  # Main variables to add to nominal RooDataSets
-  dfs['main'] = t.pandas.df(mainVars) if cat!='NOTAG' else t.pandas.df(notagVars)
+    # Main variables to add to nominal RooDataSets
+    dfs['main'] = t.pandas.df(mainVars) if cat!='NOTAG' else t.pandas.df(notagVars)
 
-  # Concatenate current dataframes
-  df = pandas.concat(dfs.values(), axis=1)
+    # Concatenate current dataframes
+    df = pandas.concat(dfs.values(), axis=1)
 
-  # Add STXS splitting var if splitting necessary
-  if opt.doSTXSSplitting: df[stxsVar] = t.pandas.df(stxsVar)
+    # Add STXS splitting var if splitting necessary
+    if opt.doSTXSSplitting: df[stxsVar] = t.pandas.df(stxsVar)
 
-  # For NOTAG: fix extract centralObjectWeight from theory weights if available
-  if cat == 'NOTAG':
-    df['type'] = 'NOTAG'
-    if opt.doNNLOPS:
-      if opt.productionMode == 'ggh':
-        if 'THU_ggH_VBF2jUp01sigma' in df:
-          df['centralObjectWeight'] = df.apply(lambda x: 0.5*(x['THU_ggH_VBF2jUp01sigma']+x['THU_ggH_VBF2jDown01sigma']), axis=1)
-          df['NNLOPSweight'] = df.apply(lambda x: 0.5*(x['THU_ggH_VBF2jUp01sigma']+x['THU_ggH_VBF2jDown01sigma']), axis=1)
+    # For NOTAG: fix extract centralObjectWeight from theory weights if available
+    if cat == 'NOTAG':
+      df['type'] = 'NOTAG'
+      if opt.doNNLOPS:
+        if opt.productionMode == 'ggh':
+          if 'THU_ggH_VBF2jUp01sigma' in df:
+            df['centralObjectWeight'] = df.apply(lambda x: 0.5*(x['THU_ggH_VBF2jUp01sigma']+x['THU_ggH_VBF2jDown01sigma']), axis=1)
+            df['NNLOPSweight'] = df.apply(lambda x: 0.5*(x['THU_ggH_VBF2jUp01sigma']+x['THU_ggH_VBF2jDown01sigma']), axis=1)
+          else:
+            df['centralObjectWeight'] = 1.
+            df['NNLOPSweight'] = 1.
         else:
           df['centralObjectWeight'] = 1.
           df['NNLOPSweight'] = 1.
       else:
-        df['centralObjectWeight'] = 1.
-        df['NNLOPSweight'] = 1.
+        if "centralObjectWeight" in mainVars: df['centralObjectWeight'] = 1.
+
+    # For experimental phase space (not NOTAG)
     else:
-      if "centralObjectWeight" in mainVars: df['centralObjectWeight'] = 1.
+      df['type'] = 'nominal'
+      # Add NNLOPS variable
+      if(opt.doNNLOPS):
+        if opt.productionMode == 'ggh': df['NNLOPSweight'] = t.pandas.df('NNLOPSweight')
+        else: df['NNLOPSweight'] = 1.
 
-  # For experimental phase space (not NOTAG)
-  else:
-    df['type'] = 'nominal'
-    # Add NNLOPS variable
-    if(opt.doNNLOPS):
-      if opt.productionMode == 'ggh': df['NNLOPSweight'] = t.pandas.df('NNLOPSweight')
-      else: df['NNLOPSweight'] = 1.
+    # Add columns specifying category add to overall dataframe
+    df['cat'] = cat
+    df['flav'] = flav
+    data = pandas.concat([data,df], ignore_index=True, axis=0, sort=False)
 
-  # Add columns specifying category add to overall dataframe
-  df['cat'] = cat
-  data = pandas.concat([data,df], ignore_index=True, axis=0, sort=False)
-
-
-  # For systematics trees: only for events in experimental phase space
-  if opt.doSystematics:
-    if cat == "NOTAG": continue
-    sdf = pandas.DataFrame()
-    for s in systematics:
-      print "    --> Systematic: %s"%re.sub("YEAR",opt.year,s)
-      for direction in ['Up','Down']:
-        streeName = "%s_%s%s01sigma"%(treeName,s,direction)
-        # If year in streeName then replace by year being processed
-        streeName = re.sub("YEAR",opt.year,streeName)
-        st = f[streeName]
-        if len(st)==0: continue
-        sdf = st.pandas.df(systematicsVars)
-        sdf['type'] = "%s%s"%(s,direction)
-        # Add STXS splitting var if splitting necessary
-        if opt.doSTXSSplitting: sdf[stxsVar] = st.pandas.df(stxsVar)
-    
-        # Add column specifying category and add to systematics dataframe
-        sdf['cat'] = cat
-        sdata = pandas.concat([sdata,sdf], ignore_index=True, axis=0, sort=False)
+    # For systematics trees: only for events in experimental phase space
+    if opt.doSystematics:
+      if cat == "NOTAG": continue
+      sdf = pandas.DataFrame()
+      for s in systematics:
+        print "    --> Systematic: %s"%re.sub("YEAR",opt.year,s)
+        for direction in ['Up','Down']:
+          streeName = "%s_%s%s01sigma"%(treeName,s,direction)
+          # If year in streeName then replace by year being processed
+          streeName = re.sub("YEAR",opt.year,streeName)
+          st = f[streeName]
+          if len(st)==0: continue
+          sdf = st.pandas.df(systematicsVars)
+          sdf['type'] = "%s%s"%(s,direction)
+          # Add STXS splitting var if splitting necessary
+          if opt.doSTXSSplitting: sdf[stxsVar] = st.pandas.df(stxsVar)
+      
+          # Add column specifying category and add to systematics dataframe
+          sdf['cat'] = cat
+          sdata = pandas.concat([sdata,sdf], ignore_index=True, axis=0, sort=False)
      
 # If not splitting by STXS bin then add dummy column to dataframe
 if not opt.doSTXSSplitting:
   data[stxsVar] = 'nosplit'  
   if opt.doSystematics: sdata[stxsVar] = 'nosplit'
 
+# TODO: Not finish this part
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # 2) Convert pandas dataframe to RooWorkspace
 for stxsId in data[stxsVar].unique():
@@ -282,62 +289,66 @@ for stxsId in data[stxsVar].unique():
 
   # Loop over cats
   for cat in cats:
+    print " --> Processing category: %s"%cat
+    for flav in flavs.split(","):
+      print "    --> Processing flavour: %s"%flav
+      # Convert dataframe to structured array, then to ROOT tree
 
-    # a) make RooDataSets: type = nominal/notag
-    mask = (df['cat']==cat)
-    # Convert dataframe to structured array, then to ROOT tree
-    sa = df[mask].to_records()
-    t = array2tree(sa)
+      # a) make RooDataSets: type = nominal/notag
+      mask = (df['cat']==cat)&(df['flav']==flav)
+      # Convert dataframe to structured array, then to ROOT tree
+      sa = df[mask].to_records()
+      t = array2tree(sa)
 
-    # Define RooDataSet
-    dName = "%s_%s_%s_%s"%(opt.productionMode,opt.inputMass,sqrts__,cat)
-    
-    # Make argset
-    aset = make_argset(ws,varNames)
+      # Define RooDataSet
+      dName = "%s_%s_%s_%s_%s"%(opt.productionMode,opt.inputMass,flav,sqrts__,cat)
+      
+      # Make argset
+      aset = make_argset(ws,varNames)
 
-    # Convert tree to RooDataset and add to workspace
-    d = ROOT.RooDataSet(dName,dName,t,aset,'','weight')
-    getattr(ws,'import')(d)
+      # Convert tree to RooDataset and add to workspace
+      d = ROOT.RooDataSet(dName,dName,t,aset,'','weight')
+      getattr(ws,'import')(d)
 
-    # Delete trees and RooDataSet from heap
-    t.Delete()
-    d.Delete()
-    del sa
+      # Delete trees and RooDataSet from heap
+      t.Delete()
+      d.Delete()
+      del sa
 
-    if opt.doSystematics:
-      # b) make RooDataHists for systematic variations
-      if cat == "NOTAG": continue
-      for s in systematics:
-        for direction in ['Up','Down']:
-          # Create mask for systematic variation
-          mask = (sdf['type']=='%s%s'%(s,direction))&(sdf['cat']==cat)
-          # Convert dataframe to structured array, then to ROOT tree
-          sa = sdf[mask].to_records()
-          t = array2tree(sa)
-          
-          # Define RooDataHist
-          hName = "%s_%s_%s_%s_%s%s01sigma"%(opt.productionMode,opt.inputMass,sqrts__,cat,s,direction)
+      if opt.doSystematics:
+        # b) make RooDataHists for systematic variations
+        if cat == "NOTAG": continue
+        for s in systematics:
+          for direction in ['Up','Down']:
+            # Create mask for systematic variation
+            mask = (sdf['type']=='%s%s'%(s,direction))&(sdf['cat']==cat)
+            # Convert dataframe to structured array, then to ROOT tree
+            sa = sdf[mask].to_records()
+            t = array2tree(sa)
+            
+            # Define RooDataHist
+            hName = "%s_%s_%s_%s_%s_%s%s01sigma"%(opt.productionMode,opt.inputMass,flav,sqrts__,cat,s,direction)
 
-          # Make argset 
-          systematicsVarsDropWeight = []
-          for var in systematicsVars:
-            if var != "weight": systematicsVarsDropWeight.append(var)
-          aset = make_argset(ws,systematicsVarsDropWeight)
-          
-          h = ROOT.RooDataHist(hName,hName,aset)
-          for ev in t:
-            for v in systematicsVars:
-              if v == "weight": continue
-              else: ws.var(v).setVal(getattr(ev,v))
-            h.add(aset,getattr(ev,'weight'))
-          
-          # Add to workspace
-          getattr(ws,'import')(h)
+            # Make argset 
+            systematicsVarsDropWeight = []
+            for var in systematicsVars:
+              if var != "weight": systematicsVarsDropWeight.append(var)
+            aset = make_argset(ws,systematicsVarsDropWeight)
+            
+            h = ROOT.RooDataHist(hName,hName,aset)
+            for ev in t:
+              for v in systematicsVars:
+                if v == "weight": continue
+                else: ws.var(v).setVal(getattr(ev,v))
+              h.add(aset,getattr(ev,'weight'))
+            
+            # Add to workspace
+            getattr(ws,'import')(h)
 
-          # Delete trees and RooDataHist
-          t.Delete()
-          h.Delete()
-          del sa
+            # Delete trees and RooDataHist
+            t.Delete()
+            h.Delete()
+            del sa
 
   # Write WS to file
   ws.Write()

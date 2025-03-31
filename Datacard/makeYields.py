@@ -27,6 +27,7 @@ def get_options():
   parser.add_option('--inputWSDirMap', dest='inputWSDirMap', default='2016:/vols/cms/jl2117/hgg/ws/UL/Sept20/MC_final/signal_2016', help="Map. Format: year=inputWSDir (separate years by comma)")
   parser.add_option('--cat', dest='cat', default='', help='Analysis category')
   parser.add_option('--procs', dest='procs', default='auto', help='Comma separated list of signal processes. auto = automatically inferred from input workspaces')
+  parser.add_option('--flavs', dest='flavs', default='ele,mu', help='Comma separated list of lepton flavours')
   parser.add_option('--ext', dest='ext', default='', help='Extension for saving') 
   parser.add_option('--mass', dest='mass', default='125', help='Input workspace mass')
   parser.add_option('--mergeYears', dest='mergeYears', default=False, action="store_true", help="Merge category across years")
@@ -72,6 +73,10 @@ if opt.procs == 'auto':
 else: procs = opt.procs.split(",")
 procs.sort()
 
+# Extract lepton flavours
+flavs = opt.flavs.split(",")
+flavs.sort()
+
 # Initiate pandas dataframe
 columns_data = ['year','type','procOriginal','proc','proc_s0','cat','inputWSFile','nominalDataName','modelWSFile','model','rate']
 data = pd.DataFrame( columns=columns_data )
@@ -83,50 +88,50 @@ print " ........................................................................
 # Signal processes
 for year in years:
   for proc in procs:
+    for flav in flavs:
+      # Identifier
+      _id = "%s_%s_%s_%s_%s"%(proc,year,opt.cat,flav,sqrts__)
 
-    # Identifier
-    _id = "%s_%s_%s_%s"%(proc,year,opt.cat,sqrts__)
+      # Mapping to STXS definition here
+      _procOriginal = proc
+      _proc = "%s_%s_%s_%s"%(procToDatacardName(proc),year,flav,decayMode)
+      _proc_s0 = procToData(proc.split("_")[0])
 
-    # Mapping to STXS definition here
-    _procOriginal = proc
-    _proc = "%s_%s_%s"%(procToDatacardName(proc),year,decayMode)
-    _proc_s0 = procToData(proc.split("_")[0])
+      # Define category: add year tag if not merging
+      if opt.mergeYears: _cat = opt.cat
+      else: _cat = "%s_%s"%(opt.cat,year)
 
-    # Define category: add year tag if not merging
-    if opt.mergeYears: _cat = opt.cat
-    else: _cat = "%s_%s"%(opt.cat,year)
+      # Input flashgg ws 
+      _inputWSFile = glob.glob("%s/*M%s*_%s.root"%(inputWSDirMap[year],opt.mass,proc))[0]
+      if proc.split("_")[-1] in ["i"]:
+      # if proc.split("_")[-1] in ["in", "out"]:
+        _nominalDataName = "%s_%s_%s_%s_%s_%s"%(_proc_s0,procToData(proc.split("_")[-1]),opt.mass,flav,sqrts__,opt.cat)  
+      else:
+        _nominalDataName = "%s_%s_%s_%s_%s"%(_proc_s0,opt.mass,flav,sqrts__,opt.cat)
 
-    # Input flashgg ws 
-    _inputWSFile = glob.glob("%s/*M%s*_%s.root"%(inputWSDirMap[year],opt.mass,proc))[0]
-    if proc.split("_")[-1] in ["i"]:
-    # if proc.split("_")[-1] in ["in", "out"]:
-      _nominalDataName = "%s_%s_%s_%s_%s"%(_proc_s0,procToData(proc.split("_")[-1]),opt.mass,sqrts__,opt.cat)  
-    else:
-      _nominalDataName = "%s_%s_%s_%s"%(_proc_s0,opt.mass,sqrts__,opt.cat)
+      # If opt.skipZeroes check nominal yield if 0 then do not add
+      skipProc = False
+      if opt.skipZeroes:
+        f = ROOT.TFile(_inputWSFile)
+        w = f.Get(inputWSName__)
+        sumw = w.data(_nominalDataName).sumEntries()
+        if sumw == 0.: skipProc = True
+        w.Delete()
+        f.Close()
+      if skipProc: continue
 
-    # If opt.skipZeroes check nominal yield if 0 then do not add
-    skipProc = False
-    if opt.skipZeroes:
-      f = ROOT.TFile(_inputWSFile)
-      w = f.Get(inputWSName__)
-      sumw = w.data(_nominalDataName).sumEntries()
-      if sumw == 0.: skipProc = True
-      w.Delete()
-      f.Close()
-    if skipProc: continue
+      # Input model ws 
+      if opt.cat == "NOTAG": _modelWSFile, _model = '-', '-'
+      else:
+        _modelWSFile = "%s/CMS-HGG_sigfit_%s_%s.root"%(opt.sigModelWSDir,opt.sigModelExt,_cat)
+        _model = "%s_%s:%s_%s"%(outputWSName__,sqrts__,outputWSObjectTitle__,_id)
 
-    # Input model ws 
-    if opt.cat == "NOTAG": _modelWSFile, _model = '-', '-'
-    else:
-      _modelWSFile = "%s/CMS-HGG_sigfit_%s_%s.root"%(opt.sigModelWSDir,opt.sigModelExt,_cat)
-      _model = "%s_%s:%s_%s"%(outputWSName__,sqrts__,outputWSObjectTitle__,_id)
+      # Extract rate from lumi
+      _rate = float(lumiMap[year])*1000
 
-    # Extract rate from lumi
-    _rate = float(lumiMap[year])*1000
-
-    # Add signal process to dataFrame:
-    print " --> Adding to dataFrame: (proc,cat) = (%s,%s)"%(_proc,_cat)
-    data.loc[len(data)] = [year,'sig',_procOriginal,_proc,_proc_s0,_cat,_inputWSFile,_nominalDataName,_modelWSFile,_model,_rate]
+      # Add signal process to dataFrame:
+      print " --> Adding to dataFrame: (proc,cat) = (%s,%s)"%(_proc,_cat)
+      data.loc[len(data)] = [year,'sig',_procOriginal,_proc,_proc_s0,_cat,_inputWSFile,_nominalDataName,_modelWSFile,_model,_rate]
 
 # Background and data processes
 if( not opt.skipBkg)&( opt.cat != "NOTAG" ):
@@ -212,6 +217,7 @@ for ir,r in data[data['type']=='sig'].iterrows():
   print " --> Extracting yields: (%s,%s) [%.1f%%]"%(r['proc'],r['cat'],100*(float(ir)/totalSignalRows))
 
   # Open input WS file and extract workspace
+  print " --> Opening input WS file: %s"%r.inputWSFile
   f_in = ROOT.TFile(r.inputWSFile)
   inputWS = f_in.Get(inputWSName__)
   # Extract nominal RooDataSet and yield
@@ -233,6 +239,7 @@ for ir,r in data[data['type']=='sig'].iterrows():
       f_NNLOPS = abs(p.getRealValue("NNLOPSweight")) if "NNLOPSweight" in contents else 1.
       if f_COWCorr == 0: continue
       else: y_COWCorr += w*(f_NNLOPS/f_COWCorr)
+  print "--> Extracting nominal yield for %s is %.4f"%(r.nominalDataName,y)
   data.at[ir,'nominal_yield'] = y
   data.at[ir,'sumw2'] = sumw2
   if not opt.skipCOWCorr: data.at[ir,'nominal_yield_COWCorr'] = y_COWCorr
