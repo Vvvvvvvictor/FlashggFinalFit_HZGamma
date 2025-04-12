@@ -5,8 +5,7 @@ models = {
 --PO \"map=.*/ggH.*:r[1,-100,102]\" \
 --PO \"map=.*/ttH.*:r[1,-100,102]\" \
 --PO \"map=.*/VBF.*:r[1,-100,102]\" \
---PO \"map=.*/WplusH.*:r[1,-100,102]\" \
---PO \"map=.*/WminusH.*:r[1,-100,102]\" \
+--PO \"map=.*/WH.*:r[1,-100,102]\" \
 --PO \"map=.*/ZH.*:r[1,-100,102]\"",
 
   "mu_differential":"-P HiggsAnalysis.CombinedLimit.PhysicsModel:multiSignalModel \

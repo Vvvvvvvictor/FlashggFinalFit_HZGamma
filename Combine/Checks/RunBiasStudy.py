@@ -72,9 +72,9 @@ for ipdf in range(multipdf.getNumPdfs()):
     indexNameMap[ipdf] = multipdf.getPdf(ipdf).GetName()
 
 if opts.toys:
-    if opts.jobName and not path.isdir(opts.jobName):
-        system('mkdir -p %s' % opts.jobName)
-    toysDir = '%sBiasToys' % (opts.jobName+'/' if opts.jobName else '')
+    if opts.jobName and not path.isdir('BiasStudy/%s' % opts.jobName):
+        system('mkdir -p BiasStudy/%s' % opts.jobName)
+    toysDir = 'BiasStudy/%s/BiasToys' % (opts.jobName if opts.jobName else '')
     if not path.isdir(toysDir): system('mkdir -p %s' % toysDir)
     toyCmdBase = 'combine -m %.4f -d %s -M GenerateOnly  --toysNoSystematics --expectSignal %.4f -s %g --saveToys %s '%(opts.mH, opts.datacard, opts.expectSignal, opts.seed, opts.combineOptions)
     for ipdf,pdfName in indexNameMap.iteritems():
@@ -93,9 +93,9 @@ if opts.toys:
 print
 
 if opts.fits:
-    if opts.jobName and not path.isdir(opts.jobName):
-        system('mkdir -p %s' % opts.jobName)
-    fitsDir = '%sBiasFits' % (opts.jobName+'/' if opts.jobName else '')
+    if opts.jobName and not path.isdir('BiasStudy/%s' % opts.jobName):
+        system('mkdir -p BiasStudy/%s' % opts.jobName)
+    fitsDir = 'BiasStudy/%s/BiasFits' % (opts.jobName if opts.jobName else '')
     if not path.isdir(fitsDir): system('mkdir -p %s' % fitsDir)
     fitCmdBase = 'combine -m %.4f -d %s -M MultiDimFit -P %s --algo singles %s '%(opts.mH, opts.datacard, opts.poi, opts.combineOptions)
     for ipdf,pdfName in indexNameMap.iteritems():
@@ -104,7 +104,7 @@ if opts.fits:
             for isplit in range(opts.nToys//opts.split):
                 fitCmd = fitCmdBase + ' -t %g -n _%s_split%g --toysFile=%s'%(opts.split, name, isplit, toyName(name, split=isplit, jobName=opts.jobName))
                 run(fitCmd, dry=opts.dryRun)
-                system('mv higgsCombine_%s* %s'%(name, fitName(name, split=isplit, jobName=opts.jobName)))
+                system('mv higgsCombine_%s* BiasStudy/%s'%(name, fitName(name, split=isplit, jobName=opts.jobName)))
             run('hadd %s BiasFits/*%s*split*.root'%(fitName(name, jobName=opts.jobName), name), dry=opts.dryRun)
         else:
             fitCmd = fitCmdBase + ' -t %g -n _%s --toysFile=%s'%(opts.nToys, name, toyName(name, jobName=opts.jobName))
@@ -113,9 +113,9 @@ if opts.fits:
         print "fit command line: ", fitCmd
 
 if opts.plots:
-    if opts.jobName and not path.isdir(opts.jobName):
-        system('mkdir -p %s' % opts.jobName)
-    plotsDir = '%sBiasPlots' % (opts.jobName+'/' if opts.jobName else '')
+    if opts.jobName and not path.isdir('BiasStudy/%s' % opts.jobName):
+        system('mkdir -p BiasStudy/%s' % opts.jobName)
+    plotsDir = 'BiasStudy/%s/BiasPlots' % (opts.jobName if opts.jobName else '')
     print "!!!!!!!!plotsDir: ", plotsDir
     if not path.isdir(plotsDir): system('mkdir -p %s' % plotsDir)
     pdfnames = []
@@ -257,7 +257,7 @@ if opts.plots:
         mg.Add(graph)
 
     # Calculate appropriate x-axis range
-    max_x = max([abs(m) for m in means]) * 1.2
+    max_x = max(max([abs(m) for m in means]) * 1.2, 0.2)
     
     # Dynamically adjust y-axis range based on number of legend items
     legend_items = len(pdfnames) + 2  # Number of functions + 2 color region descriptions
@@ -332,8 +332,8 @@ if opts.plots:
         legend.AddEntry(graph, short_name, "p")
         
     # Add entries for color regions
-    legend.AddEntry(yellow_box, "Bias < 2%", "f")
-    legend.AddEntry(green_box, "Bias < 1%", "f")
+    legend.AddEntry(yellow_box, "Bias < 0.2", "f")
+    legend.AddEntry(green_box, "Bias < 0.14", "f")
     legend.Draw("same")
     
     # Add CMS Preliminary label

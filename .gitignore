@@ -5,9 +5,9 @@
 *.pkl
 *.pyc
 
-*/*outdir*
-*/*bin*
-*/*obj*
-*/*/*jobs*
-*/*store*
-*/BiasStudy*
+**/*outdir*/
+**/bin/
+**/obj/
+**/*jobs*/
+**/*store*/
+**/*BiasStudy*/
