@@ -73,6 +73,7 @@ class PdfModelBuilder {
     RooAbsPdf* getKeysPdf(string prefix);
     RooAbsPdf* getPdfFromFile(string &prefix);
     RooAbsPdf* getExpModGaussian(string prefix);
+    RooAbsPdf* getAsymGenGaussian(string prefix);
 
   private:
    

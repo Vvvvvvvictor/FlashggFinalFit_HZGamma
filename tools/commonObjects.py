@@ -15,7 +15,7 @@ sqrts__ = "13TeV"
 
 # Luminosity map in fb^-1: for using UL 2018
 # lumiMap = {'2016preVFP':16.80 , '2016postVFP': 19.51, '2017':41.48, '2018':59.83, 'combined':137.65, 'merged':137.65, '2022':34.7, '2022preEE':8.0, '2022postEE':26.7}
-lumiMap = {'2016preVFP':1 , '2016postVFP': 1, '2016': 1, '2017':1, '2018':1, 'combined':1, 'merged':1, '2022':34.7, '2022preEE':8.0, '2022postEE':26.7}
+lumiMap = {'2016preVFP':1 , '2016postVFP': 1, '2016': 1, '2017':1, '2018':1, 'combined':1, 'merged':1, '2022':1, '2022preEE':1, '2022postEE':1,'2023preBPix':1, '2023postBPix':1}
 # If using ReReco samples then switch to lumiMap below (missing data in 2018 EGamma data set)
 #lumiMap = {'2016':36.33, '2017':41.48, '2018':59.35, 'combined':137.17, 'merged':137.17}
 lumiScaleFactor = 1000. # Converting from pb to fb

@@ -1,0 +1,10 @@
+{
+    "CMS_hgg_mass": "169.94166666666666",
+    "nbkg": "1149.1267293066428",
+    "nsig": "1.0417571559630687",
+    "sstest_pdf_VBF2_LaurentStepxGau2_lau2_cp0": "0",
+    "sstest_pdf_VBF2_LaurentStepxGau2_lau2_cp1": "0.80210071508244307",
+    "sstest_pdf_VBF2_LaurentStepxGau2_lau2_cp2": "0",
+    "sstest_pdf_VBF2_LaurentStepxGau2_lau2_sigma": "1.09464819698849",
+    "sstest_pdf_VBF2_LaurentStepxGau2_lau2_step": "97.128374415819806"
+}

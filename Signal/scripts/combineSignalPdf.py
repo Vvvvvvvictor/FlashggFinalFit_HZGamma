@@ -58,10 +58,87 @@ for input_file in input_files:
     
     # Find all signal PDFs for this category
     for pdfName, pdf in allPdfs.iteritems():
-        if "extendhggpdfsmrel_" in pdfName and opt.cat in pdfName:
+        if "extendhggpdfsmrel_" in pdfName and opt.cat in pdfName and "ThisLumi" not in pdfName:
             # Store PDF
             all_pdfs.append(pdf)
             print "Found PDF: %s" % pdfName
+
+# Before combining, evaluate each PDF at different mass points
+print " --> Evaluating individual PDFs at different mass points (80-180 GeV)"
+
+# Create mass variable if not already in workspace
+mgg = combinedWS.var("CMS_hgg_mass")
+if not mgg:
+    print "Creating CMS_hgg_mass variable"
+    mgg = ROOT.RooRealVar("CMS_hgg_mass", "Diphoton mass", 100, 180, "GeV")
+    combinedWS.imp(mgg)
+
+# Set mass range for evaluation
+min_mass = 80.0
+max_mass = 180.0
+step_size = 1.0
+
+# Ensure output directory exists
+if not os.path.isdir("outdir_%s" % opt.outputExt):
+    os.system("mkdir -p outdir_%s" % opt.outputExt)
+
+# Prepare output file for individual PDFs
+indiv_values_file = "./outdir_%s/individual_pdf_values_%s.txt" % (opt.outputExt, opt.cat)
+with open(indiv_values_file, "w") as fout:
+    fout.write("# Mass point (GeV)")
+    for i, pdf in enumerate(all_pdfs):
+        fout.write("\tPDF_%d" % i)
+    fout.write("\n")
+    
+    # Ensure mgg range covers our needed range
+    orig_min = mgg.getMin()
+    orig_max = mgg.getMax()
+    mgg.setRange(min_mass, max_mass)
+    
+    # Sample key mass points to show in terminal (to avoid too much output)
+    sample_masses = [80.0, 100.0, 120.0, 125.0, 130.0, 150.0, 180.0]
+    
+    # Print header for terminal output
+    print "Mass (GeV)",
+    for i in range(len(all_pdfs)):
+        print "\tPDF_%d" % i,
+    print ""
+    print "-" * (15 + 15 * len(all_pdfs))
+    
+    # Calculate PDF values at each mass point
+    for mass in [min_mass + i * step_size for i in range(int((max_mass - min_mass) / step_size) + 1)]:
+        mgg.setVal(mass)
+        
+        # Write to file for all mass points
+        fout.write("%.1f" % mass)
+        
+        # For each PDF, calculate normalized value
+        for pdf in all_pdfs:
+            # Normalize the PDF
+            norm = pdf.createIntegral(ROOT.RooArgSet(mgg))
+            norm_val = norm.getVal()
+            print "norm_val: %s, valv: %s" % (pdf.getNorm(ROOT.RooArgSet(mgg)), pdf.getValV(ROOT.RooArgSet(mgg)))
+            
+            # Get PDF value at this mass
+            pdf_val = pdf.getVal()
+            normalized_val = pdf_val / norm_val if norm_val > 0 else 0
+            
+            # Write to file
+            fout.write("\t%.8e" % normalized_val)
+            
+            break
+        
+        # End the line in the file
+        fout.write("\n")
+    
+    # End the last line in terminal output
+    print ""
+    
+    # Restore original range
+    mgg.setRange(orig_min, orig_max)
+
+print "Individual PDF values saved to file: %s" % indiv_values_file
+print ""
 
 # Create a single combined PDF with all signal components
 print " --> Creating combined PDF with %d components" % len(all_pdfs)
@@ -144,3 +221,45 @@ print "Done! Combined PDF saved to output file, accessible via:"
 print "  TFile *f = TFile::Open(\"%s\");" % output_filename
 print "  RooWorkspace *w = (RooWorkspace*)f->Get(\"wsig_13TeV\");"
 print "  RooAbsPdf *pdf = w->pdf(\"%s\");" % combined_name
+
+# Now reopen the saved PDF file and read values from 80-180 GeV in 1 GeV steps
+print "\n --> Reading saved PDF file, outputting values in 80-180 GeV range"
+
+# Already saved above, now use directly
+min_mass = 80.0
+max_mass = 180.0
+step_size = 1.0
+
+# Prepare output file
+output_values_file = "./outdir_%s/pdf_values_%s.txt" % (opt.outputExt, opt.cat)
+with open(output_values_file, "w") as fout:
+    fout.write("# Mass point (GeV) \t PDF value\n")
+    
+    # Ensure mgg range covers our needed range
+    orig_min = mgg.getMin()
+    orig_max = mgg.getMax()
+    mgg.setRange(min_mass, max_mass)
+    
+    # Normalize PDF
+    norm = combined_pdf.createIntegral(ROOT.RooArgSet(mgg))
+    norm_val = norm.getVal()
+    
+    # Calculate PDF values within specified range with given step size
+    print "Mass point (GeV) \t PDF value"
+    print "-" * 30
+    
+    for mass in [min_mass + i * step_size for i in range(int((max_mass - min_mass) / step_size) + 1)]:
+        mgg.setVal(mass)
+        pdf_val = combined_pdf.getVal()
+        normalized_val = pdf_val / norm_val if norm_val > 0 else 0
+        
+        # Print to terminal
+        print "%.1f \t\t %.8e" % (mass, normalized_val)
+        
+        # Write to file
+        fout.write("%.1f \t %.8e\n" % (mass, normalized_val))
+    
+    # Restore original range
+    mgg.setRange(orig_min, orig_max)
+
+print "\nPDF values saved to file: %s" % output_values_file

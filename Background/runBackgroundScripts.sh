@@ -159,8 +159,20 @@ if [ $ISDATA == 1 ]; then
 OPT=" --isData 1"
 fi
 
-echo " ./bin/fTest -i $FILE --saveMultiPdf $OUTDIR/CMS-HGG_multipdf_$EXT_$CATS.root  -D $OUTDIR/bkgfTest$DATAEXT -f $CATS $OPT --year $YEAR --catOffset $CATOFFSET"
-./bin/fTest -i $FILE --saveMultiPdf $OUTDIR/CMS-HGG_multipdf_$EXT_$CATS.root  -D $OUTDIR/bkgfTest$DATAEXT -f $CATS $OPT --year $YEAR --catOffset $CATOFFSET
+echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+if [ "$CATS" = "VBF0" ]; then
+  RANGELOW=" --mgg_low 100"
+elif [ "$CATS" = "VBF1" ] || [ "$CATS" = "VBF2" ] || [ "$CATS" = "VBF3" ]; then
+  RANGELOW=" --mgg_low 95"
+else
+  RANGELOW=""
+fi
+echo $RANGELOW
+
+echo " ./bin/fTest -i $FILE --saveMultiPdf $OUTDIR/CMS-HGG_multipdf_$EXT_$CATS.root  -D $OUTDIR/bkgfTest$DATAEXT -f $CATS $RANGELOW $OPT --year $YEAR --catOffset $CATOFFSET"
+./bin/fTest -i $FILE --saveMultiPdf $OUTDIR/CMS-HGG_multipdf_$EXT_$CATS.root  -D $OUTDIR/bkgfTest$DATAEXT -f $CATS $RANGELOW $OPT --year $YEAR --catOffset $CATOFFSET
+FTEST_RETURN=$?
+echo "fTest return code: $FTEST_RETURN"
 
 OPT=""
 fi

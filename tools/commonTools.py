@@ -6,6 +6,8 @@ import math
 from collections import OrderedDict as od
 from commonObjects import *
 
+from pdb import set_trace
+
 # Function for iterating over ROOT argsets in workspace
 def rooiter(x):
   iter = x.iterator()

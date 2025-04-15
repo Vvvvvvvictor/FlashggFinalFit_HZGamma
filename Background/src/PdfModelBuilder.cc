@@ -112,7 +112,7 @@ RooAbsPdf* PdfModelBuilder::getChebychev(string prefix, int order){
 RooAbsPdf *PdfModelBuilder::getBernsteinStepxGau(string prefix, int order){
   RooRealVar *mean = new RooRealVar(Form("%s_mean", prefix.c_str()), Form("%s_mean", prefix.c_str()), 0.);
   RooRealVar *sigma = new RooRealVar(Form("%s_sigma", prefix.c_str()), Form("%s_sigma", prefix.c_str()), 5., 1., 10.);
-  RooRealVar *step = new RooRealVar(Form("%s_step", prefix.c_str()), Form("%s_step", prefix.c_str()), 105., 100., 120.);
+  RooRealVar *step = new RooRealVar(Form("%s_step", prefix.c_str()), Form("%s_step", prefix.c_str()), 105., 95., 120.);
   RooArgList *coeffList = new RooArgList();
   for (int i = 0; i < order; i++) {
     string name = Form("%s_b%d", prefix.c_str(), i);
@@ -132,22 +132,24 @@ RooAbsPdf *PdfModelBuilder::getPowerLawStepxGau(string prefix, int order){
   if (order%2==0 || order > 7) return NULL;
   RooRealVar *mean = new RooRealVar(Form("%s_mean", prefix.c_str()), Form("%s_mean", prefix.c_str()), 0.);
   RooRealVar *sigma = new RooRealVar(Form("%s_sigma", prefix.c_str()), Form("%s_sigma", prefix.c_str()), 5., 1., 10.);
-  RooRealVar *step = new RooRealVar(Form("%s_step", prefix.c_str()), Form("%s_step", prefix.c_str()), 105., 100., 120.);
+  RooRealVar *step = new RooRealVar(Form("%s_step", prefix.c_str()), Form("%s_step", prefix.c_str()), 105., 95., 120.);
   RooArgList *coeffList = new RooArgList();
   RooArgList formulaArgs;
-  string formula = "1e-20+(@0 > @1)*(";
+  string formula = "TMath::Min(TMath::Max((@0-@1)*153.85, 0.0), 1.0)*(";
 
   formulaArgs.add(*obs_var);
   formulaArgs.add(*step);
+  
+  int xmax = obs_var->getMax();
 
   for (int i = 0; i < order; i += 2) {
-    string pName = Form("%s_p%d_pow%d", prefix.c_str(), i + 1, order);
-    string cpName = Form("%s_cp%d_pow%d", prefix.c_str(), i + 1, order);
+    string pName = Form("%s_p%d", prefix.c_str(), i + 1, order);
+    string cpName = Form("%s_cp%d", prefix.c_str(), i + 1, order);
     RooRealVar *p = new RooRealVar(pName.c_str(), pName.c_str(), -2.0, -10.0, 0.0);
     RooRealVar *cp = new RooRealVar(cpName.c_str(), cpName.c_str(), 0.1 * (i + 1), 0., 1.);
     formulaArgs.add(*p);
     formulaArgs.add(*cp);
-    formula += Form("@%d*(@0)^(@%d)", formulaArgs.getSize() - 1, formulaArgs.getSize() - 2);
+    formula += Form("@%d*@0^(@%d)*(1+@%d)/(%d^(1+@%d)-@1^(1+@%d))", formulaArgs.getSize() - 1, formulaArgs.getSize() - 2, formulaArgs.getSize() - 2, xmax, formulaArgs.getSize() - 2, formulaArgs.getSize() - 2);
     if (i + 2 < order) {
       formula += "+";
     }
@@ -164,22 +166,24 @@ RooAbsPdf *PdfModelBuilder::getExponentialStepxGau(string prefix, int order){
   if (order%2==0 || order > 7) return NULL;
   RooRealVar *mean = new RooRealVar(Form("%s_mean", prefix.c_str()), Form("%s_mean", prefix.c_str()), 0.);
   RooRealVar *sigma = new RooRealVar(Form("%s_sigma", prefix.c_str()), Form("%s_sigma", prefix.c_str()), 5., 1., 10.);
-  RooRealVar *step = new RooRealVar(Form("%s_step", prefix.c_str()), Form("%s_step", prefix.c_str()), 105., 100., 120.);
+  RooRealVar *step = new RooRealVar(Form("%s_step", prefix.c_str()), Form("%s_step", prefix.c_str()), 105., 95., 120.);
   RooArgList *coeffList = new RooArgList();
   RooArgList formulaArgs;
-  string formula = "1e-20+(@0 > @1)*(";
+  string formula = "TMath::Min(TMath::Max((@0-@1)*153.85, 0.0), 1.0)*(";
 
   formulaArgs.add(*obs_var);
   formulaArgs.add(*step);
 
+  int xmax = obs_var->getMax();
+
   for (int i = 0; i < order; i += 2) {
-    string pName = Form("%s_p%d_exp%d", prefix.c_str(), i + 1, order);
-    string cpName = Form("%s_cp%d_exp%d", prefix.c_str(), i + 1, order);
+    string pName = Form("%s_p%d", prefix.c_str(), i + 1, order);
+    string cpName = Form("%s_cp%d", prefix.c_str(), i + 1, order);
     RooRealVar *p = new RooRealVar(pName.c_str(), pName.c_str(), -0.05*i, -0.5, 0.0);
     RooRealVar *cp = new RooRealVar(cpName.c_str(), cpName.c_str(), 0.9, 0., 1.);
     formulaArgs.add(*p);
     formulaArgs.add(*cp);
-    formula += Form("@%d*TMath::Exp(@%d*@0)", formulaArgs.getSize() - 1, formulaArgs.getSize() - 2);
+    formula += Form("@%d*TMath::Exp(@%d*@0)*@%d/(%d^(1+@%d)-@1^(1+@%d))", formulaArgs.getSize() - 1, formulaArgs.getSize() - 2, formulaArgs.getSize() - 1, xmax, formulaArgs.getSize() - 2, formulaArgs.getSize() - 2);
     if (i + 2 < order) {
       formula += "+";
     }
@@ -198,22 +202,28 @@ RooAbsPdf *PdfModelBuilder::getLaurentStepxGau(string prefix, int order){
   RooRealVar *sigma = new RooRealVar(Form("%s_sigma", prefix.c_str()), Form("%s_sigma", prefix.c_str()), 5., 1., 10.);
   RooRealVar *step = new RooRealVar(Form("%s_step", prefix.c_str()), Form("%s_step", prefix.c_str()), 101., 95., 120.);
   RooArgList formulaArgs;
-  string formula = "1e-20+(@0 > @1)*(";
+  string formula = "TMath::Min(TMath::Max((@0-@1)*153.85, 0.0), 1.0)*(";
 
   formulaArgs.add(*obs_var);
   formulaArgs.add(*step);
+
+  int xmax = obs_var->getMax();
+
+  // ***************************************
+  // Fixed the order to be added
+  // ***************************************
 
   int nlower = int(ceil(order / 2.));
   int nhigher = order - nlower;
 
   RooRealVar *cp0 = new RooRealVar(Form("%s_cp0", prefix.c_str()), Form("%s_cp0_l%d", prefix.c_str(), order), 0.01, 0., 0.5);
   formulaArgs.add(*cp0);
-  formula += Form("@%d*(@0-95)^(-3)+", formulaArgs.getSize() - 1);
+  formula += Form("@%d*@0^(-3)*(-2)/(%d^(-2)-@1^(-2))+", formulaArgs.getSize() - 1, xmax);
 
   for (int i = 1; i <= nlower; i++) {
     RooRealVar *cp = new RooRealVar(Form("%s_cp%d", prefix.c_str(), i), Form("%s_cp%d", prefix.c_str(), i), 0.001, 0., 1.);
     formulaArgs.add(*cp);
-    formula += Form("@%d*(@0-95)^(%d)", formulaArgs.getSize() - 1, -3 - i);
+    formula += Form("@%d*@0^(%d)*(%d)/(%d^(%d)-@1^(%d))", formulaArgs.getSize() - 1, -3 - i, -2 - i, xmax, -2 - i, -2 - i);
     if (i < nlower) {
       formula += "+";
     }
@@ -222,11 +232,28 @@ RooAbsPdf *PdfModelBuilder::getLaurentStepxGau(string prefix, int order){
   for (int i = 1; i <= nhigher; i++) {
     RooRealVar *cp = new RooRealVar(Form("%s_cp%d", prefix.c_str(), i + nlower), Form("%s_cp%d", prefix.c_str(), i + nlower), 0.01, 0., 0.5);
     formulaArgs.add(*cp);
-    formula += Form("+@%d*(@0-95)^(%d)", formulaArgs.getSize() - 1, -3 + i);
+    formula += Form("+@%d*@0^(%d)*(%d)/(%d^(%d)-@1^(%d))", formulaArgs.getSize() - 1, -3 + i, -2 + i, xmax, -2 + i, -2 + i);
     if (i < nhigher) {
       formula += "+";
     }
   }
+
+  // // *************************************
+  // // New implementation(NO fixed order)
+  // // *************************************
+  // for (int i = 0; i < order; i++) {
+  //   RooRealVar *cp = new RooRealVar(Form("%s_cp%d", prefix.c_str(), i), Form("%s_cp%d", prefix.c_str(), i), 0.1*i, 0., 1.);
+  //   RooRealVar *p = new RooRealVar(Form("%s_p%d", prefix.c_str(), i), Form("%s_p%d", prefix.c_str(), i), -2-i, -10, -0.9);
+        
+  //   formulaArgs.add(*p);
+  //   formulaArgs.add(*cp);
+
+  //   // Use p parameter only as a negative integer
+  //   formula += Form("@%d*pow(@0,floor(@%d))*(1+floor(@%d))/(%d^(1+floor(@%d))-@1^(1+floor(@%d)))", formulaArgs.getSize() - 1, formulaArgs.getSize() - 2, formulaArgs.getSize() - 2, xmax, formulaArgs.getSize() - 2, formulaArgs.getSize() - 2);
+  //   if (i + 1 < order) {
+  //     formula += "+";
+  //   }
+  // }
 
   formula += ")";
   cout << "FORM -- " << formula << endl;
@@ -479,7 +506,7 @@ RooAbsPdf* PdfModelBuilder::getPdfFromFile(string &prefix){
 
 RooAbsPdf* PdfModelBuilder::getExpModGaussian(string prefix){
   // Define parameters: mu, sigma and lambda
-  RooRealVar *mu = new RooRealVar(Form("%s_mu",prefix.c_str()), Form("%s_mu",prefix.c_str()), 105., 100., 120.);
+  RooRealVar *mu = new RooRealVar(Form("%s_mu",prefix.c_str()), Form("%s_mu",prefix.c_str()), 105., 95., 120.);
   RooRealVar *sigma = new RooRealVar(Form("%s_sigma",prefix.c_str()), Form("%s_sigma",prefix.c_str()), 3., 1., 10.); // Adjusted lower limit
   RooRealVar *lambda = new RooRealVar(Form("%s_lambda",prefix.c_str()), Form("%s_lambda",prefix.c_str()), 0.1, 0.001, 0.5); // Keep upper limit limited for stability
   
@@ -504,6 +531,44 @@ RooAbsPdf* PdfModelBuilder::getExpModGaussian(string prefix){
   RooGenericPdf *emg = new RooGenericPdf(prefix.c_str(), "Exponentially Modified Gaussian", formula.c_str(), formulaVars);
   
   return emg;
+}
+
+RooAbsPdf* PdfModelBuilder::getAsymGenGaussian(string prefix){
+  // Define parameters: beta, alpha and mu
+  // This function implements the formula: beta/(2*alpha*Gamma(1/beta)) * exp(-((|x-mu|/alpha)^beta))
+  // where:
+  // - beta is the shape parameter (controls the peakedness)
+  // - alpha is the scale parameter (controls the width)
+  // - mu is the location parameter (controls the center position)
+  
+  RooRealVar *beta = new RooRealVar(Form("%s_beta", prefix.c_str()), Form("%s_beta", prefix.c_str()), 2.0, 0.5, 5.0);
+  RooRealVar *alpha = new RooRealVar(Form("%s_alpha", prefix.c_str()), Form("%s_alpha", prefix.c_str()), 1.0, 0.1, 10.0);
+  RooRealVar *mu = new RooRealVar(Form("%s_mu", prefix.c_str()), Form("%s_mu", prefix.c_str()), 105.0, 95.0, 125.0);
+  
+  // Add parameters to the params map
+  params.insert(pair<string,RooRealVar*>(Form("%s_beta", prefix.c_str()), beta));
+  params.insert(pair<string,RooRealVar*>(Form("%s_alpha", prefix.c_str()), alpha));
+  params.insert(pair<string,RooRealVar*>(Form("%s_mu", prefix.c_str()), mu));
+  
+  // Create a list of formula variables
+  RooArgList formulaVars;
+  formulaVars.add(*obs_var);    // x
+  formulaVars.add(*mu);         // mu
+  formulaVars.add(*alpha);      // alpha
+  formulaVars.add(*beta);       // beta
+  
+  // Formula implementation of: beta/(2*alpha*Gamma(1/beta)) * exp(-((|x-mu|/alpha)^beta))
+  // We use TMath::Gamma(1/beta) for the gamma function
+  // We need to ensure numerical stability:
+  // 1. Prevent division by zero in gamma function
+  // 2. Prevent overflow in the exponent
+  // 3. Ensure the absolute value is properly handled
+  string formula = "@3/(2*@2*TMath::Gamma(1.0/@3)) * exp(-pow(abs(@0-@1)/@2, @3))";
+  
+  // Create the generalized Gaussian PDF with the specified formula
+  RooGenericPdf *agg = new RooGenericPdf(prefix.c_str(), "Generalized Gaussian Distribution", formula.c_str(), formulaVars);
+  
+  return agg;
 }
 
 RooAbsPdf* PdfModelBuilder::getExponentialSingle(string prefix, int order){
@@ -565,6 +630,7 @@ void PdfModelBuilder::addBkgPdf(string type, int nParams, string name, bool cach
   if (type=="KeysPdf") pdf = getKeysPdf(name);
   if (type=="File") pdf = getPdfFromFile(name);
   if (type=="ExpModGaussian") pdf = getExpModGaussian(name);
+  if (type=="AsymGenGaussian") pdf = getAsymGenGaussian(name);
 
   if (cache) {
     wsCache->import(*pdf);
@@ -904,44 +970,4 @@ void PdfModelBuilder::saveWorkspace(string filename){
 void PdfModelBuilder::saveWorkspace(TFile *file){
   file->cd();
   wsCache->Write();
-}
-
-RooAbsPdf* getPdf(PdfModelBuilder &pdfsModel, string type, int order, const char* ext=""){
-  
-  if (type=="Bernstein") return pdfsModel.getBernstein(Form("%s_bern%d",ext,order),order); 
-  else if (type=="Chebychev") return pdfsModel.getChebychev(Form("%s_cheb%d",ext,order),order); 
-  else if (type=="Exponential") return pdfsModel.getExponentialSingle(Form("%s_exp%d",ext,order),order); 
-  else if (type=="PowerLaw") return pdfsModel.getPowerLawSingle(Form("%s_pow%d",ext,order),order); 
-  else if (type=="Laurent") return pdfsModel.getLaurentSeries(Form("%s_lau%d",ext,order),order);
-  else if (type=="BernsteinStepxGau") {
-    RooAbsPdf* pdf = pdfsModel.getBernsteinStepxGau(Form("%s_bern%d",ext,order),order);
-    if (!pdf) std::cout << "[ERROR] Failed to create BernsteinStepxGau order " << order << std::endl;
-    return pdf;
-  } 
-  else if (type=="ExponentialStepxGau") {
-    RooAbsPdf* pdf = pdfsModel.getExponentialStepxGau(Form("%s_exp%d",ext,order),order);
-    if (!pdf) std::cout << "[ERROR] Failed to create ExponentialStepxGau order " << order << " (only odd orders <7 allowed)" << std::endl;
-    return pdf;
-  } 
-  else if (type=="PowerLawStepxGau") {
-    RooAbsPdf* pdf = pdfsModel.getPowerLawStepxGau(Form("%s_pow%d",ext,order),order);
-    if (!pdf) std::cout << "[ERROR] Failed to create PowerLawStepxGau order " << order << " (only odd orders <7 allowed)" << std::endl;
-    return pdf;
-  } 
-  else if (type=="LaurentStepxGau") {
-    RooAbsPdf* pdf = pdfsModel.getLaurentStepxGau(Form("%s_lau%d",ext,order),order);
-    if (!pdf) std::cout << "[ERROR] Failed to create LaurentStepxGau order " << order << " (only orders <7 allowed)" << std::endl;
-    return pdf;
-  }
-  else if (type=="ExpModGauss"){
-    if (order > 1) {
-      std::cout << "[ERROR] ExpModGauss does not support orders > 1" << std::endl;
-      return NULL;
-    }
-    else return pdfsModel.getExpModGaussian(Form("%s_expmodgauss",ext));
-  }
-  else {
-    cerr << "[ERROR] -- getPdf() -- type " << type << " not recognised." << endl;
-    return NULL;
-  }
 }

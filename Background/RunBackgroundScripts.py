@@ -36,7 +36,7 @@ if opt.inputConfig != '':
     _cfg = backgroundScriptCfg
 
     #Extract options
-    options['dataFile']     = "%s/output_Data_Run2.root"%_cfg['inputWSDir']
+    options['dataFile']     = _cfg['inputWS']
     options['cats']         = _cfg['cats']
     options['catOffset']    = _cfg['catOffset']
     options['ext']          = _cfg['ext']
@@ -93,6 +93,7 @@ print " ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Make directory to store job scripts and output
+print " --> Creating output directory %s/outdir_%s" %(bwd__,options['ext'])
 if not os.path.isdir("%s/outdir_%s"%(bwd__,options['ext'])): os.system("mkdir %s/outdir_%s"%(bwd__,options['ext']))
 
 # Write submission files: style depends on batch system

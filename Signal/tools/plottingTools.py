@@ -93,7 +93,7 @@ def plotFTest(ssfs,_opt=1,_outdir='./',_extension='',_proc='',_cat='',_flav='',_
     else: hists[k].SetLineWidth(1)
     hists[k].SetLineColor(LineColorMap[k.split("_")[-1]])
     hists[k].SetTitle("")
-    hists[k].GetXaxis().SetTitle("m_{#ell#ell#gamma} [GeV]")
+    hists[k].GetXaxis().SetTitle("m_{ll#gamma} [GeV]")
     hists[k].SetMinimum(0)
     if hists[k].GetMaximum()>hmax: hmax = hists[k].GetMaximum()
     if hists[k].GetMinimum()<hmin: hmin = hists[k].GetMinimum()
@@ -106,7 +106,7 @@ def plotFTest(ssfs,_opt=1,_outdir='./',_extension='',_proc='',_cat='',_flav='',_
   hists['data'].SetMarkerColor(1)
   hists['data'].SetLineColor(1)
   hists['data'].SetTitle("")
-  hists['data'].GetXaxis().SetTitle("m_{#ell#ell#gamma} [GeV]")
+  hists['data'].GetXaxis().SetTitle("m_{ll#gamma} [GeV]")
   hists['data'].SetMinimum(0)
   hists['data'].GetXaxis().SetRangeUser(115,140)
   if hists['data'].GetMaximum()>hmax: hmax = hists['data'].GetMaximum()
@@ -207,7 +207,7 @@ def plotPdfComponents(ssf,_outdir='./',_extension='',_proc='',_cat='',_flav=''):
   hists['final'].SetLineWidth(2)
   hists['final'].SetLineColor(1)
   hists['final'].SetTitle("")
-  hists['final'].GetXaxis().SetTitle("m_{#gamma#gamma} [GeV]")
+  hists['final'].GetXaxis().SetTitle("m_{ll#gamma} [GeV]")
   hists['final'].SetMinimum(0)
   if hists['final'].GetMaximum()>hmax: hmax = hists['final'].GetMaximum()
   if hists['final'].GetMinimum()<hmin: hmin = hists['final'].GetMinimum()
@@ -217,7 +217,7 @@ def plotPdfComponents(ssf,_outdir='./',_extension='',_proc='',_cat='',_flav=''):
   hists['data'] = ssf.xvar.createHistogram("h_data%s"%_extension,ROOT.RooFit.Binning(ssf.nBins))
   ssf.DataHists['125'].fillHistogram(hists['data'],ROOT.RooArgList(ssf.xvar))
   hists['data'].SetTitle("")
-  hists['data'].GetXaxis().SetTitle("m_{#gamma#gamma} [GeV]")
+  hists['data'].GetXaxis().SetTitle("m_{ll#gamma} [GeV]")
   hists['data'].SetMinimum(0)
   #hists['data'].GetXaxis().SetRangeUser(115,140)
   hists['data'].GetXaxis().SetRangeUser(100,150)
@@ -326,7 +326,7 @@ def plotInterpolation(_finalModel,_outdir='./',_massPoints='120,121,122,123,124,
 
   # Extract first hist and clone for axes
   haxes = hists[hists.keys()[0]].Clone()
-  haxes.GetXaxis().SetTitle("m_{#gamma#gamma} [GeV]")
+  haxes.GetXaxis().SetTitle("m_{ll#gamma} [GeV]")
   haxes.GetYaxis().SetTitle("Events / %.2f GeV"%((_finalModel.xvar.getMax()-_finalModel.xvar.getMin())/_finalModel.xvar.getBins()))
   haxes.SetMinimum(0)
   haxes.SetMaximum(hmax*1.2)
@@ -442,7 +442,7 @@ def plotSplines(_finalModel,_outdir="./",_nominalMass='125',splinesToPlot=['xs',
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Function for plotting final signal model: neat
 def plotSignalModel(_hists,_opt,_outdir=".",offset=0.02):
-  colorMap = {'2016preVFP':24,'2016postVFP':38,'2017':30,'2018':46}
+  colorMap = {'2016preVFP':24,'2016postVFP':38,'2017':30,'2018':46,'2022preEE':42,'2022postEE':43,'2023preBPix':44,'2023postBPix':45}
   canv = ROOT.TCanvas("c","c",650,600)
   canv.SetBottomMargin(0.12)
   canv.SetLeftMargin(0.15)
@@ -554,7 +554,7 @@ def plotSignalModel(_hists,_opt,_outdir=".",offset=0.02):
   lat0.SetTextSize(0.045)
   lat0.DrawLatex(0.15,0.92,"#bf{CMS} #it{%s}"%_opt.label)
   lat0.DrawLatex(0.77,0.92,"%s TeV"%(sqrts__.split("TeV")[0]))
-  lat0.DrawLatex(0.16+offset,0.83,"H #rightarrow Z#gamma")
+  lat0.DrawLatex(0.16+offset,0.83,"H #rightarrow Z#gamma #rightarrow ll#gamma")
 
   # Load translations
   translateCats = {} if _opt.translateCats is None else LoadTranslations(_opt.translateCats)

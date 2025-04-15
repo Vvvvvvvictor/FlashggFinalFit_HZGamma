@@ -6,6 +6,7 @@ from commonObjects import *
 def run(cmd):
   print "%s\n\n"%cmd
   os.system(cmd)
+  print "  --> Finished running %s\n"%cmd
 
 def writePreamble(_file):
   _file.write("#!/bin/bash\n")
@@ -127,7 +128,9 @@ def submitFiles(_opts):
         c = _opts['cats'].split(",")[cidx]
         _subfile = "%s/%s_%s"%(_jobdir,_executable,c)
         cmdLine = "bash %s.sh"%_subfile
+        print "  --> Starting to run %s.sh"%_subfile
         run(cmdLine)
+        print "  --> Finished running %s.sh"%_subfile
     print "  --> Finished running files"
 
  

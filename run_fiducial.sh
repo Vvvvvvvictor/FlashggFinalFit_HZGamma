@@ -9,7 +9,7 @@ SignalWSPath="/eos/home-j/jiehan/root/input_finalfit/signal"
 
 SinalProcs=("ggH" "VBF" "WH" "ZH" "ttH") # "ggH" "VBF" "WplusH" "WminusH" "ZH" "ttH"
 mass_points=("125")
-years=("2016preVFP" "2016postVFP" "2017" "2018")
+years=("2016preVFP" "2016postVFP" "2017" "2018" "2022preEE" "2022postEE" "2023preBPix" "2023postBPix") #"2016preVFP" "2016postVFP" "2017" "2018" "2022preEE" "2022postEE" "2023preBPix" "2023postBPix"
 
 ############################################
 # Tree2WS
@@ -17,7 +17,7 @@ years=("2016preVFP" "2016postVFP" "2017" "2018")
 # cd ${mainPath}/Trees2WS
 # # make background ws
 # mkdir -p ${BackgroundWSPath}
-# python trees2ws_data.py --inputConfig config_Run2.py --inputTreeFile /eos/home-j/jiehan/root/fitting_bkg/Data/output_Data_Run2.root --outputWSDir ${BackgroundWSPath}
+# python trees2ws_data.py --inputConfig config_Run2.py --inputTreeFile /eos/home-j/jiehan/root/fitting_bkg/Data/output_Data_all.root --outputWSDir ${BackgroundWSPath}
 
 # # make signal ws
 # mkdir -p ${SignalWSPath}
@@ -51,20 +51,24 @@ years=("2016preVFP" "2016postVFP" "2017" "2018")
 # # done
 # # signalfit
 # for year in "${years[@]}"; do
-#     python RunSignalScripts.py --inputConfig config_${year}_fiducial.py --mode signalFit --groupSignalFitJobsByCat --modeOpts "--doPlots --beamspotWidthData 3.5 --beamspotWidthMC 3.7 --useDCB --skipSystematics" 
+#     python RunSignalScripts.py --inputConfig config_${year}_fiducial.py --mode signalFit --groupSignalFitJobsByCat --modeOpts "--doPlots --beamspotWidthData 3.5 --beamspotWidthMC 3.7 --useDCB --skipSystematics"
 # done
-# # signal model plotting
-# python RunPlotter.py --procs all --cats all --years 2016preVFP,2016postVFP,2017,2018 --ext packaged
 
 # # packaged
-# python RunPackager.py --cats VBF0,VBF1,VBF2,VBF3 --exts fiducial_2016preVFP,fiducial_2016postVFP,fiducial_2017,fiducial_2018 --mergeYears --batch local #ggH0,ggH1,ggH2,ggH3,VBF0,VBF1,VBF2,VBF3,VHlep,ZHinv,ttHl,ttHh
+# python RunPackager.py --cats VBF0,VBF1,VBF2,VBF3 --exts fiducial_2016preVFP,fiducial_2016postVFP,fiducial_2017,fiducial_2018,fiducial_2022preEE,fiducial_2022postEE,fiducial_2023preBPix,fiducial_2023postBPix --mergeYears --batch local --outputExt packaged
+# #ggH0,ggH1,ggH2,ggH3,VBF0,VBF1,VBF2,VBF3,VHlep,ZHinv,ttHl,ttHh
+
+# # signal model plotting
+# python RunPlotter.py --procs all --cats all --years 2016preVFP,2016postVFP,2017,2018,2022preEE,2022postEE,2023preBPix,2023postBPix --ext packaged
+
+# for cat in VBF0 VBF1 VBF2 VBF3; do python scripts/combineSignalPdf.py --cat $cat; done
 
 ###########################################
 # Background
 ###########################################
-# cd ${mainPath}/Background
-# make clean; make -j 16;
-# python RunBackgroundScripts.py --inputConfig config_Run2_fiducial.py --mode fTestParallel --jobOpts “--blindFit”
+cd ${mainPath}/Background
+make clean; make -j 16;
+python RunBackgroundScripts.py --inputConfig config_fiducial_run2.py --mode fTestParallel --jobOpts “--blindFit”
 
 ###########################################
 # Datacard
@@ -98,17 +102,19 @@ years=("2016preVFP" "2016postVFP" "2017" "2018")
 # cp -r ../Signal/outdir_packaged/CMS-HGG_sigfit_packaged_* Models/signal/
 # cp -r ../Background/outdir_fiducialAnalysis/CMS-HGG_multipdf_* Models/background/
 
-# for ext in "_fiducial" "_VBF0" "_VBF1" "_VBF2" "_VBF3"; do
+# for ext in "_fiducial" "_VBF0" "_VBF1"  "_VBF2" "_VBF3"; do #"_fiducial" "_VBF0" "_VBF1"  "_VBF2" "_VBF3"; do
 #     python RunText2Workspace.py --ext $ext --mode mu_fiducial --batch local
 # done
 
 # # Bias Study
 # cd Checks/
-# for cat in "VBF0"; do # "VBF1" "VBF2" "VBF3"; do
-#     # python RunBiasStudy.py -j $cat -d ../Datacard_${cat}_mu_fiducial.root -t
-#     # python RunBiasStudy.py -j $cat -d ../Datacard_${cat}_mu_fiducial.root -f -c "--cminDefaultMinimizerStrategy 0 --X-rtd MINIMIZER_freezeDisassociatedParams --X-rtd MINIMIZER_multiMin_hideConstants --X-rtd MINIMIZER_multiMin_maskConstraints   --rMin -100 --rMax 100  --freezeParameters MH"
+# for cat in "VBF1"; do # "VBF0" "VBF1"  "VBF2" "VBF3"
+#     python RunBiasStudy.py -j $cat -d ../Datacard_${cat}_mu_fiducial.root -t -n 1000 --dryRun
+#     python RunBiasStudy.py -j $cat -d ../Datacard_${cat}_mu_fiducial.root -f -n 1000 -c "--cminDefaultMinimizerStrategy 0 --X-rtd MINIMIZER_freezeDisassociatedParams --X-rtd MINIMIZER_multiMin_hideConstants --X-rtd MINIMIZER_multiMin_maskConstraints   --rMin -100 --rMax 100  --freezeParameters MH" --dryRun
+#     # python RunBiasStudy.py -j $cat -d ../Datacard_${cat}_mu_fiducial.root -f -n 100 -c "--alignEdges 1 --setParameterRanges CMS_hgg_mass=110,130 --cminDefaultMinimizerStrategy 0 --X-rtd MINIMIZER_freezeDisassociatedParams --X-rtd MINIMIZER_multiMin_hideConstants --X-rtd MINIMIZER_multiMin_maskConstraints --X-rtd MINIMIZER_multiMin_maskChannels=2"
 #     python RunBiasStudy.py -j $cat -d ../Datacard_${cat}_mu_fiducial.root -p --gaussianFit
 # done
+
 # python Checks/RunBiasStudy.py -d /afs/cern.ch/user/j/jiehan/finalfit/CMSSW_10_2_13/src/flashggFinalFit/Combine/Datacard_VBF0_mu_fiducial.root -t 
 # python Checks/RunBiasStudy.py -d /afs/cern.ch/user/j/jiehan/finalfit/CMSSW_10_2_13/src/flashggFinalFit/Combine/Datacard_VBF0_mu_fiducial.root -f -c "--cminDefaultMinimizerStrategy 0 --X-rtd MINIMIZER_freezeDisassociatedParams --X-rtd MINIMIZER_multiMin_hideConstants --X-rtd MINIMIZER_multiMin_maskConstraints   --rMin -100 --rMax 100  --freezeParameters MH"
 # python Checks/RunBiasStudy.py -d /afs/cern.ch/user/j/jiehan/finalfit/CMSSW_10_2_13/src/flashggFinalFit/Combine/Datacard_VBF0_mu_fiducial.root -p --gaussianFit
@@ -117,19 +123,26 @@ years=("2016preVFP" "2016postVFP" "2017" "2018")
 
 # 改改名字
 # sed -i -E '/13TeV_bkgshape/s/(13TeV_bkgshape)/2022_\1_norm/g; /pdfindex/s/(resolution)/\1_2022/g' Datacard.txt
-# 送到afs去
+# # 送到afs去
 # cp models.py ~/finalfit/CMSSW_10_2_13/src/flashggFinalFit/Combine/
 # cp inputs.json ~/finalfit/CMSSW_10_2_13/src/flashggFinalFit/Combine/
 # cp Datacard*.txt ~/finalfit/CMSSW_10_2_13/src/flashggFinalFit/Combine/
 # cp -r Models ~/finalfit/CMSSW_10_2_13/src/flashggFinalFit/Combine/
-cd ~/finalfit/CMSSW_10_2_13/src/flashggFinalFit/
-# 环境
-source /cvmfs/cms.cern.ch/cmsset_default.sh
-cmsenv
-source setup.sh
-cd Combine
+# cp Checks/RunBiasStudy.py ~/finalfit/CMSSW_10_2_13/src/flashggFinalFit/Combine/Checks/
+# cp Checks/biasUtils.py ~/finalfit/CMSSW_10_2_13/src/flashggFinalFit/Combine/Checks/
+# cd ~/finalfit/CMSSW_10_2_13/src/flashggFinalFit/
+# # 环境
+# source /cvmfs/cms.cern.ch/cmsset_default.sh
+# cmsenv
+# source setup.sh
+# cd Combine
 # python RunText2Workspace.py --ext _fiducial --mode mu_fiducial --batch local
-# python RunFits.py --inputJson inputs.json --ext _fiducial --mode mu_fiducial --batch condor
+# # python RunFits.py --inputJson inputs.json --ext _fiducial --mode mu_fiducial --batch condor
+
+# for cat in "VBF0" "VBF1" "VBF2" "VBF3"; do
+#     python RunText2Workspace.py --ext _$cat --mode mu_fiducial --batch local
+#     # python RunFits.py --inputJson inputs.json --ext _$cat --mode mu_fiducial --batch condor
+# done
 
 # # # for ext in "_VBF"; #"_fiducial" "_ggH" "_VBF" "_others"; 
 # # # do
@@ -139,14 +152,20 @@ cd Combine
 
 # # # for ext in "_fiducial" "_VBF0" "_VBF1" "_VBF2" "_VBF3"; do cd runFits${ext}_mu_fiducial; rm *log *err *out *root; find . -name "*statonly*.sub" -exec condor_submit {} \;; cd ..; done # "_ggH" "_VBF" "_others"
 
-# for cat in "VBF0" "VBF1" "VBF2" "VBF3"; do
-#     python RunText2Workspace.py --ext _$cat --mode mu_fiducial --batch local
-#     # python RunFits.py --inputJson inputs.json --ext _$cat --mode mu_fiducial --batch condor
+# # Bias Study
+# cd Checks/
+# for cat in "VBF0" "VBF1"  "VBF2" "VBF3"; do # 
+#     python RunBiasStudy.py -j $cat -d /eos/home-j/jiehan/finalfit_102X/CMSSW_10_2_13/src/flashggFinalFit/Combine/Datacard_${cat}_mu_fiducial.root -t -n 1000 --condor --dryRun
+#     python RunBiasStudy.py -j $cat -d /eos/home-j/jiehan/finalfit_102X/CMSSW_10_2_13/src/flashggFinalFit/Combine/Datacard_${cat}_mu_fiducial.root -f -n 1000 -c "--cminDefaultMinimizerStrategy 0 --X-rtd MINIMIZER_freezeDisassociatedParams --X-rtd MINIMIZER_multiMin_hideConstants --X-rtd MINIMIZER_multiMin_maskConstraints   --rMin -100 --rMax 100  --freezeParameters MH" --condor --dryRun
+# done
+
+# for cat in "fiducial" "VBF0" "VBF1" "VBF2" "VBF3"; do
+#     combine Datacard_${cat}_mu_fiducial.root -M Significance -t -1 --expectSignal=1 -m 125.0 -n allCats
 # done
 
 # for ext in "_fiducial" "_VBF0" "_VBF1" "_VBF2" "_VBF3"; do cd runFits${ext}_mu_fiducial; find . -name "*.sub" -exec condor_submit {} \;; cd ..; done
 
-python CollectFits.py --inputJson inputs.json --mode mu_fiducial --ext _fiducial
+# python CollectFits.py --inputJson inputs.json --mode mu_fiducial --ext _fiducial
 # plot1DScan.py runFits_fiducial_mu_fiducial/profile1D_syst_r.root --y-cut 5 --y-max 5 --output r_fiducial_fixed_statsyst --POI r --translate ../Plots/pois_mu.json --main-label 'Expected' --main-color 1 --others runFits_fiducial_mu_fiducial/profile1D_statonly_r.root:'Stat only':2 --logo-sub 'Work in Progress'
 
 # exts=("_fiducial" "_ggH" "_VBF" "_others")
@@ -158,13 +177,13 @@ python CollectFits.py --inputJson inputs.json --mode mu_fiducial --ext _fiducial
 #     plot1DScan.py runFits${ext}_mu_fiducial/profile1D_syst_r.root --y-cut $lim --y-max $lim --output r${ext}_fixed_statsyst --POI r --translate ../Plots/pois_mu.json --main-label 'Expected' --main-color 1 --others runFits${ext}_mu_fiducial/profile1D_statonly_r.root:'Stat only':2 --logo-sub 'Work in Progress'
 # done
 
-for cat in "VBF0" "VBF1" "VBF2" "VBF3"; do
-    python CollectFits.py --inputJson inputs.json --mode mu_fiducial --ext _$cat
-    # plot1DScan.py runFits_${cat}_mu_fiducial/profile1D_syst_r.root --y-cut 1 --y-max 1 --output r_${cat}_fiducial_fixed_statsyst --POI r --translate ../Plots/pois_mu.json --main-label 'Expected' --main-color 1 --others runFits_${cat}_mu_fiducial/profile1D_statonly_r.root:'Stat only':2 --logo-sub 'Work in Progress'
-done
+# for cat in "VBF0" "VBF1" "VBF2" "VBF3"; do
+#     python CollectFits.py --inputJson inputs.json --mode mu_fiducial --ext _$cat
+#     # plot1DScan.py runFits_${cat}_mu_fiducial/profile1D_syst_r.root --y-cut 1 --y-max 1 --output r_${cat}_fiducial_fixed_statsyst --POI r --translate ../Plots/pois_mu.json --main-label 'Expected' --main-color 1 --others runFits_${cat}_mu_fiducial/profile1D_statonly_r.root:'Stat only':2 --logo-sub 'Work in Progress'
+# done
 
 # cd ../Plots
-# python makeSplusBModelPlot.py --inputWSFile ../Combine/Datacard_fiducial_mu_fiducial.root --cats all --doZeroes --ext _Run2 --translateCats cats.json
+# python makeSplusBModelPlot.py --inputWSFile ../Combine/Datacard_fiducial_mu_fiducial.root --cats all --doZeroes --ext _Run23 --translateCats cats.json
 
 # impact plot
 # text2workspace.py Datacard_fiducial.txt -m 125 -o Datacard_fiducial.root

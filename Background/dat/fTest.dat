@@ -1,14 +1,5 @@
 cat=0
-truth=BernsteinStepxGau:5:bern5
-truth=ExpModGauss:1:modgau1
-truth=ExponentialStepxGau:3:exp3
-truth=LaurentStepxGau:2:lau2
-truth=PowerLawStepxGau:1:pow1
-paul=BernsteinStepxGau:3:bern3
-paul=BernsteinStepxGau:4:bern4
-paul=BernsteinStepxGau:5:bern5
-paul=ExpModGauss:1:modgau1
-paul=ExponentialStepxGau:3:exp3
-paul=ExponentialStepxGau:5:exp5
+truth=LaurentStepxGau:1:lau1
 paul=LaurentStepxGau:2:lau2
+paul=LaurentStepxGau:3:lau3
 
