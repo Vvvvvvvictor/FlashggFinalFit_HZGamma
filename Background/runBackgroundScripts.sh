@@ -159,7 +159,7 @@ if [ $ISDATA == 1 ]; then
 OPT=" --isData 1"
 fi
 
-echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+# Modify the fitting range if necessary
 if [ "$CATS" = "VBF0" ]; then
   RANGELOW=" --mgg_low 100"
 elif [ "$CATS" = "VBF1" ] || [ "$CATS" = "VBF2" ] || [ "$CATS" = "VBF3" ]; then

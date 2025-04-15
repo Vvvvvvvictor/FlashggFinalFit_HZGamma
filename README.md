@@ -97,6 +97,9 @@ python RunBackgroundScripts.py --inputConfig <config_file> --mode fTestParallel 
 * path for spurious signal test MC shape: `TFile* fbkg = TFile::Open(Form("/eos/user/j/jiehan/root/input_finalfit/templates/template_%s.root", runPeriod.Data()));`, if you don't have one, please generate it with `/HiggsZGammaAna/synchronization_script/create_direct_templates.py` or `HiggsZGammaAna/SSTest/Generate_template.py`
 * path for signal combined pdf path: `TString signalFileName = Form("/eos/user/j/jiehan/finalfit_102X/CMSSW_10_2_13/src/flashggFinalFit/Signal/outdir_combinedPDFs/CMS-HGG_combinedPDFs_%s.root", cat.Data());`
 
+***IF it is needed to change the fitting range, please change the range in `Trees2WS/trees2ws_data.py`, `Background/test/fTest.cpp` also the sstest template and input of trees2ws***
+**A simple way to adjust the fitting range of fTest is to modify `RANGELOW` variables in `Background/runBackgroundScripts.sh`**
+
 ## Make the datacard
 ```
 cd Datacard
