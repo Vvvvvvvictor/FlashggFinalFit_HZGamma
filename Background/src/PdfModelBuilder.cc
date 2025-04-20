@@ -145,7 +145,7 @@ RooAbsPdf *PdfModelBuilder::getPowerLawStepxGau(string prefix, int order){
   for (int i = 0; i < order; i += 2) {
     string pName = Form("%s_p%d", prefix.c_str(), i + 1, order);
     string cpName = Form("%s_cp%d", prefix.c_str(), i + 1, order);
-    RooRealVar *p = new RooRealVar(pName.c_str(), pName.c_str(), -2.0, -10.0, 0.0);
+    RooRealVar *p = new RooRealVar(pName.c_str(), pName.c_str(), -4.0-i, -15.0, 0.0);
     RooRealVar *cp = new RooRealVar(cpName.c_str(), cpName.c_str(), 0.1 * (i + 1), 0., 1.);
     formulaArgs.add(*p);
     formulaArgs.add(*cp);
@@ -155,7 +155,7 @@ RooAbsPdf *PdfModelBuilder::getPowerLawStepxGau(string prefix, int order){
     }
   }
   formula += ")";
-
+  cout << "FORM -- " << formula << endl;
   RooGenericPdf *stepPdf = new RooGenericPdf(Form("%s_step_pow%d", prefix.c_str(), order), Form("%s_step_pow%d", prefix.c_str(), order), formula.c_str(), formulaArgs);
   RooGaussModel *gau = new RooGaussModel(Form("%s_gau_pow%d", prefix.c_str(), order), Form("%s_gau_pow%d", prefix.c_str(), order), *obs_var, *mean, *sigma);
   RooFFTConvPdf *gauxpow = new RooFFTConvPdf(Form("%s_gauxpow%d", prefix.c_str(), order), Form("%s_gauxpow%d", prefix.c_str(), order), *obs_var, *stepPdf, *gau);
@@ -189,7 +189,7 @@ RooAbsPdf *PdfModelBuilder::getExponentialStepxGau(string prefix, int order){
     }
   }
   formula += ")";
-
+  cout << "FORM -- " << formula << endl;
   RooGenericPdf *stepPdf = new RooGenericPdf(Form("%s_step_exp%d", prefix.c_str(), order), Form("%s_step_exp%d", prefix.c_str(), order), formula.c_str(), formulaArgs);
   RooGaussModel *gau = new RooGaussModel(Form("%s_gau_exp%d", prefix.c_str(), order), Form("%s_gau_exp%d", prefix.c_str(), order), *obs_var, *mean, *sigma);
   RooFFTConvPdf *gauxexp = new RooFFTConvPdf(Form("%s_gauxexp%d", prefix.c_str(), order), Form("%s_gauxexp%d", prefix.c_str(), order), *obs_var, *stepPdf, *gau);
@@ -254,6 +254,42 @@ RooAbsPdf *PdfModelBuilder::getLaurentStepxGau(string prefix, int order){
   //     formula += "+";
   //   }
   // }
+
+  formula += ")";
+  cout << "FORM -- " << formula << endl;
+  RooGenericPdf *stepPdf = new RooGenericPdf(Form("%s_step_lau%d", prefix.c_str(), order), Form("%s_step_lau%d", prefix.c_str(), order), formula.c_str(), formulaArgs);
+  RooGaussModel *gau = new RooGaussModel(Form("%s_gau_lau%d", prefix.c_str(), order), Form("%s_gau_lau%d", prefix.c_str(), order), *obs_var, *mean, *sigma);
+  RooFFTConvPdf *gauxlau = new RooFFTConvPdf(Form("%s_gauxlau%d", prefix.c_str(), order), Form("%s_gauxlau%d", prefix.c_str(), order), *obs_var, *stepPdf, *gau);
+  return gauxlau;
+}
+
+RooAbsPdf *PdfModelBuilder::getLaurentStepxGau(string prefix, int order, vector<int> ps){
+  if (order > 7) return NULL;
+  if (ps.size() != order) return NULL;
+  RooRealVar *mean = new RooRealVar(Form("%s_mean", prefix.c_str()), Form("%s_mean", prefix.c_str()), 0.);
+  RooRealVar *sigma = new RooRealVar(Form("%s_sigma", prefix.c_str()), Form("%s_sigma", prefix.c_str()), 5., 1., 10.);
+  RooRealVar *step = new RooRealVar(Form("%s_step", prefix.c_str()), Form("%s_step", prefix.c_str()), 101., 95., 120.);
+  RooArgList formulaArgs;
+  string formula = "TMath::Min(TMath::Max((@0-@1)*153.85, 0.0), 1.0)*(";
+
+  formulaArgs.add(*obs_var);
+  formulaArgs.add(*step);
+
+  int xmax = obs_var->getMax();
+
+  // *************************************
+  // New implementation(NO fixed order)
+  // *************************************
+  for (int i = 0; i < order; i++){
+    RooRealVar *cp = new RooRealVar(Form("%s_cp%d", prefix.c_str(), i), Form("%s_cp%d", prefix.c_str(), i), 0.5-0.1*i, 0, 1.0);
+    RooRealVar *p = new RooRealVar(Form("%s_p%d", prefix.c_str(), i), Form("%s_p%d", prefix.c_str(), i), ps[i]);
+    formulaArgs.add(*p);
+    formulaArgs.add(*cp);
+    formula += Form("@%d*@0^@%d*(1+@%d)/(%d^(1+@%d)-@1^(1+@%d))", formulaArgs.getSize() - 1, formulaArgs.getSize() - 2, formulaArgs.getSize() - 2, xmax, formulaArgs.getSize() - 2, formulaArgs.getSize() - 2);
+    if (i + 1 < order) {
+      formula += "+";
+    }
+  }
 
   formula += ")";
   cout << "FORM -- " << formula << endl;
@@ -528,7 +564,7 @@ RooAbsPdf* PdfModelBuilder::getExpModGaussian(string prefix){
   string formula = "(@3/2) * exp(min(20.0, (@3/2) * (2*@1 + @3*@2*@2 - 2*@0))) * TMath::Erfc(((@1 + @3*@2*@2 - @0)/(sqrt(2)*@2)))";
   
   // Create RooGenericPdf with the stabilized formula
-  RooGenericPdf *emg = new RooGenericPdf(prefix.c_str(), "Exponentially Modified Gaussian", formula.c_str(), formulaVars);
+  RooGenericPdf *emg = new RooGenericPdf(Form("%s_modgau", prefix.c_str()), "Exponentially Modified Gaussian", formula.c_str(), formulaVars);
   
   return emg;
 }

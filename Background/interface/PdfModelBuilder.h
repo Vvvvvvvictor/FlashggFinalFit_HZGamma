@@ -61,6 +61,7 @@ class PdfModelBuilder {
     RooAbsPdf *getExponentialStepxGau(string prefix, int order);
     RooAbsPdf *getPowerLawStepxGau(string prefix, int order);
     RooAbsPdf *getLaurentStepxGau(string prefix, int order);
+    RooAbsPdf *getLaurentStepxGau(string prefix, int order, vector<int> ps);
 
     RooAbsPdf* getBernstein(string prefix, int order);
     RooAbsPdf* getChebychev(string prefix, int order);
