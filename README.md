@@ -55,6 +55,20 @@ Each of the relevant folders are documented with specific `README.md` files. Som
 
 # Important illustration of the final fits workflow
 
+## Prepare input for tree2ws
+For normal workflow with HiggsDNA
+```
+python HiggsZGammaAna/hzgml/scripts/apply_bdt_sig_corr.py -c <train-bdt-config> -i <skimmed-ntuple-dir> -m <model-dir> -o <flashgg-type-data-dir> -s <categorization-result-dir>
+python HiggsZGammaAna/hzgml/scripts/apply_bdt_bkg.py -c <train-bdt-config> -i <skimmed-ntuple-dir> -m <model-dir> -o <flashgg-type-data-dir> -s <categorization-result-dir>
+```
+For synchronization using cornell's samples
+```
+python HiggsZGammaAna/synchronization_script/convert_root_format.py -i <cornnel-output> -t <signal/data>
+```
+**use 'signal' or 'data' to process the signal and background samples**
+
+**Maybe the name format would be different between VBF and ggF. PLEASE DO A CHEACK ON THIs**
+
 ## Generate the workspace for fitting
 example for the data workspace
 ```
