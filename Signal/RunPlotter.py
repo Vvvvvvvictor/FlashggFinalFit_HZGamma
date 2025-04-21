@@ -14,6 +14,7 @@ def get_options():
   parser.add_option('--procs', dest='procs', default='all', help="Comma separated list of processes to include. all = sum all signal procs")  
   parser.add_option('--years', dest='years', default='2016,2017,2018', help="Comma separated list of years to include")  
   parser.add_option('--cats', dest='cats', default='', help="Comma separated list of analysis categories to include. all = sum of all categories, wall = weighted sum of categories (requires S/S+B from ./Plots/getCatInfo.py)")
+  parser.add_option('--flavs', dest='flavs', default='all', help="Comma separated list of flavors to include. all = sum of all flavors")
   parser.add_option('--loadCatWeights', dest='loadCatWeights', default='', help="Load S/S+B weights for analysis categories (path to weights json file)")
   parser.add_option('--ext', dest='ext', default='test', help="Extension: defines output dir where signal models are saved")
   parser.add_option("--xvar", dest="xvar", default='CMS_hgg_mass:m_{#gamma#gamma}:GeV', help="x-var (name:title:units)")
@@ -84,30 +85,49 @@ for cat,f in inputFiles.iteritems():
   data_rwgt = od()
   hpdfs = od()
   for year in opt.years.split(","):
+    # Determine which processes and flavors to use
+    procs_list = []
+    flavs_list = []
+    
     if opt.procs == 'all':
       allNorms = w.allFunctions().selectByName("*%s*normThisLumi"%year)
       for norm in rooiter(allNorms):
         proc = norm.GetName().split("%s_"%outputWSObjectTitle__)[-1].split("_%s"%year)[0]
-        k  =  "%s__%s"%(proc,year)
-        _id = "%s_%s_%s_%s"%(proc,year,cat,sqrts__)
-        norms[k] = w.function("%s_%s_normThisLumi"%(outputWSObjectTitle__,_id))
+        if proc not in procs_list:
+          procs_list.append(proc)
     else:
-      for proc in opt.procs.split(","):
-        k = "%s__%s"%(proc,year)
-        _id = "%s_%s_%s_%s"%(proc,year,cat,sqrts__)
-        norms[k] = w.function("%s_%s_normThisLumi"%(outputWSObjectTitle__,_id))
+      procs_list = opt.procs.split(",")
     
+    if opt.flavs == 'all':
+      allNorms = w.allFunctions().selectByName("*%s*%s*normThisLumi"%(year, cat))
+      for norm in rooiter(allNorms):
+        flav = norm.GetName().split("%s_"%cat)[-1].split("_%s"%sqrts__)[0]
+        if flav not in flavs_list:
+          flavs_list.append(flav)
+    else:
+      flavs_list = opt.flavs.split(",")
+    
+    # Common loop for all cases
+    for proc in procs_list:
+      for flav in flavs_list:
+        k = "%s_%s_%s"%(proc, year, flav)
+        _id = "%s_%s_%s_%s_%s"%(proc, year, cat, flav, sqrts__)
+        norm_func = w.function("%s_%s_normThisLumi"%(outputWSObjectTitle__, _id))
+        if norm_func:  # Check if function exists
+          norms[k] = norm_func
+
   # Iterate over norms: extract total category norm
   catNorm = 0
   for k, norm in norms.iteritems():
-    proc, year = k.split("__")
+    proc, year, flav = k.split("_")
+    _id = "%s_%s_%s_%s_%s"%(proc, year, cat, flav, sqrts__)
     w.var("IntLumi").setVal(lumiScaleFactor*lumiMap[year])
     catNorm += norm.getVal()
 
   # Iterate over norms and extract data sets + pdfs
   for k, norm in norms.iteritems():
-    proc, year = k.split("__")
-    _id = "%s_%s_%s_%s"%(proc,year,cat,sqrts__)
+    proc, year , flav = k.split("_")
+    _id = "%s_%s_%s_%s_%s"%(proc, year, cat, flav, sqrts__)
     w.var("IntLumi").setVal(lumiScaleFactor*lumiMap[year])
 
     # Prune

@@ -112,7 +112,7 @@ RooAbsPdf* PdfModelBuilder::getChebychev(string prefix, int order){
 RooAbsPdf *PdfModelBuilder::getBernsteinStepxGau(string prefix, int order){
   RooRealVar *mean = new RooRealVar(Form("%s_mean", prefix.c_str()), Form("%s_mean", prefix.c_str()), 0.);
   RooRealVar *sigma = new RooRealVar(Form("%s_sigma", prefix.c_str()), Form("%s_sigma", prefix.c_str()), 5., 1., 10.);
-  RooRealVar *step = new RooRealVar(Form("%s_step", prefix.c_str()), Form("%s_step", prefix.c_str()), 105., 95., 120.);
+  RooRealVar *step = new RooRealVar(Form("%s_step", prefix.c_str()), Form("%s_step", prefix.c_str()), 105., 95., 115.);
   RooArgList *coeffList = new RooArgList();
   for (int i = 0; i < order; i++) {
     string name = Form("%s_b%d", prefix.c_str(), i);
@@ -132,7 +132,7 @@ RooAbsPdf *PdfModelBuilder::getPowerLawStepxGau(string prefix, int order){
   if (order%2==0 || order > 7) return NULL;
   RooRealVar *mean = new RooRealVar(Form("%s_mean", prefix.c_str()), Form("%s_mean", prefix.c_str()), 0.);
   RooRealVar *sigma = new RooRealVar(Form("%s_sigma", prefix.c_str()), Form("%s_sigma", prefix.c_str()), 5., 1., 10.);
-  RooRealVar *step = new RooRealVar(Form("%s_step", prefix.c_str()), Form("%s_step", prefix.c_str()), 105., 95., 120.);
+  RooRealVar *step = new RooRealVar(Form("%s_step", prefix.c_str()), Form("%s_step", prefix.c_str()), 105., 95., 115.);
   RooArgList *coeffList = new RooArgList();
   RooArgList formulaArgs;
   string formula = "TMath::Min(TMath::Max((@0-@1)*153.85, 0.0), 1.0)*(";
@@ -166,7 +166,7 @@ RooAbsPdf *PdfModelBuilder::getExponentialStepxGau(string prefix, int order){
   if (order%2==0 || order > 7) return NULL;
   RooRealVar *mean = new RooRealVar(Form("%s_mean", prefix.c_str()), Form("%s_mean", prefix.c_str()), 0.);
   RooRealVar *sigma = new RooRealVar(Form("%s_sigma", prefix.c_str()), Form("%s_sigma", prefix.c_str()), 5., 1., 10.);
-  RooRealVar *step = new RooRealVar(Form("%s_step", prefix.c_str()), Form("%s_step", prefix.c_str()), 105., 95., 120.);
+  RooRealVar *step = new RooRealVar(Form("%s_step", prefix.c_str()), Form("%s_step", prefix.c_str()), 105., 95., 115.);
   RooArgList *coeffList = new RooArgList();
   RooArgList formulaArgs;
   string formula = "TMath::Min(TMath::Max((@0-@1)*153.85, 0.0), 1.0)*(";
@@ -200,7 +200,7 @@ RooAbsPdf *PdfModelBuilder::getLaurentStepxGau(string prefix, int order){
   if (order > 7) return NULL;
   RooRealVar *mean = new RooRealVar(Form("%s_mean", prefix.c_str()), Form("%s_mean", prefix.c_str()), 0.);
   RooRealVar *sigma = new RooRealVar(Form("%s_sigma", prefix.c_str()), Form("%s_sigma", prefix.c_str()), 5., 1., 10.);
-  RooRealVar *step = new RooRealVar(Form("%s_step", prefix.c_str()), Form("%s_step", prefix.c_str()), 101., 95., 120.);
+  RooRealVar *step = new RooRealVar(Form("%s_step", prefix.c_str()), Form("%s_step", prefix.c_str()), 101., 95., 115.);
   RooArgList formulaArgs;
   string formula = "TMath::Min(TMath::Max((@0-@1)*153.85, 0.0), 1.0)*(";
 
@@ -268,7 +268,7 @@ RooAbsPdf *PdfModelBuilder::getLaurentStepxGau(string prefix, int order, vector<
   if (ps.size() != order) return NULL;
   RooRealVar *mean = new RooRealVar(Form("%s_mean", prefix.c_str()), Form("%s_mean", prefix.c_str()), 0.);
   RooRealVar *sigma = new RooRealVar(Form("%s_sigma", prefix.c_str()), Form("%s_sigma", prefix.c_str()), 5., 1., 10.);
-  RooRealVar *step = new RooRealVar(Form("%s_step", prefix.c_str()), Form("%s_step", prefix.c_str()), 101., 95., 120.);
+  RooRealVar *step = new RooRealVar(Form("%s_step", prefix.c_str()), Form("%s_step", prefix.c_str()), 101., 95., 115.);
   RooArgList formulaArgs;
   string formula = "TMath::Min(TMath::Max((@0-@1)*153.85, 0.0), 1.0)*(";
 
