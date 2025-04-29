@@ -161,9 +161,13 @@ fi
 
 # Modify the fitting range if necessary
 if [ "$CATS" = "VBF0" ]; then
-  RANGELOW=" --mgg_low 100"
-elif [ "$CATS" = "VBF1" ] || [ "$CATS" = "VBF2" ] || [ "$CATS" = "VBF3" ]; then
-  RANGELOW=" --mgg_low 95"
+  RANGELOW=" --mgg_low 105 --mgg_high 170"
+elif [ "$CATS" = "VBF1" ]; then
+  RANGELOW=" --mgg_low 100 --mgg_high 165"
+elif [ "$CATS" = "VBF2" ]; then
+  RANGELOW=" --mgg_low 95 --mgg_high 161"
+elif [ "$CATS" = "VBF3" ]; then
+  RANGELOW=" --mgg_low 95 --mgg_high 160"
 else
   RANGELOW=""
 fi

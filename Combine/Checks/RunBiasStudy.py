@@ -294,7 +294,7 @@ if opts.plots:
 
     # Calculate appropriate y-axis range
     min_y = min(expectSignals) - (max(expectSignals) - min(expectSignals) + 1) * 0.1  # Default lower limit
-    max_y = max(expectSignals) + (max(expectSignals) - min(expectSignals) + 1) * (0.2 + 1.1 * legend_height / (1 - legend_height))  # Default upper limit
+    max_y = max(expectSignals) + (max(expectSignals) - min(expectSignals) + 1) * (0.1 + 1. / (1 - legend_height))  # Default upper limit
     
     # Adjust y-axis minimum to ensure enough space for legend
     legend_position_top = 0.9  # Legend top position (NDC coordinates)
@@ -397,6 +397,8 @@ if opts.plots:
     text_y_step = 0.045  # Larger spacing
     
     for i, (pdfname, mean, mean_error) in enumerate(zip(pdfnames, means, mean_errors)):
+        if i >= len(unique_pdfnames):
+            break
         short_name = shortName(pdfname)
         bias_text.DrawLatex(text_x, text_y_top-i*text_y_step, "%s: %.3f #pm %.3f" % (short_name, mean, mean_error))
     

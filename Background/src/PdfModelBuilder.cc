@@ -216,14 +216,17 @@ RooAbsPdf *PdfModelBuilder::getLaurentStepxGau(string prefix, int order){
   int nlower = int(ceil(order / 2.));
   int nhigher = order - nlower;
 
+  int mid = -7;
+  int midPower = mid;
+
   RooRealVar *cp0 = new RooRealVar(Form("%s_cp0", prefix.c_str()), Form("%s_cp0_l%d", prefix.c_str(), order), 0.01, 0., 0.5);
   formulaArgs.add(*cp0);
-  formula += Form("@%d*@0^(-3)*(-2)/(%d^(-2)-@1^(-2))+", formulaArgs.getSize() - 1, xmax);
+  formula += Form("@%d*@0^(%d)*(%d)/(%d^(%d)-@1^(%d))+", formulaArgs.getSize() - 1, midPower, midPower+1, xmax, midPower+1, midPower+1);
 
   for (int i = 1; i <= nlower; i++) {
     RooRealVar *cp = new RooRealVar(Form("%s_cp%d", prefix.c_str(), i), Form("%s_cp%d", prefix.c_str(), i), 0.001, 0., 1.);
     formulaArgs.add(*cp);
-    formula += Form("@%d*@0^(%d)*(%d)/(%d^(%d)-@1^(%d))", formulaArgs.getSize() - 1, -3 - i, -2 - i, xmax, -2 - i, -2 - i);
+    formula += Form("@%d*@0^(%d)*(%d)/(%d^(%d)-@1^(%d))", formulaArgs.getSize() - 1, midPower - i, midPower - i + 1, xmax, midPower - i + 1, midPower - i + 1);
     if (i < nlower) {
       formula += "+";
     }
@@ -232,7 +235,7 @@ RooAbsPdf *PdfModelBuilder::getLaurentStepxGau(string prefix, int order){
   for (int i = 1; i <= nhigher; i++) {
     RooRealVar *cp = new RooRealVar(Form("%s_cp%d", prefix.c_str(), i + nlower), Form("%s_cp%d", prefix.c_str(), i + nlower), 0.01, 0., 0.5);
     formulaArgs.add(*cp);
-    formula += Form("+@%d*@0^(%d)*(%d)/(%d^(%d)-@1^(%d))", formulaArgs.getSize() - 1, -3 + i, -2 + i, xmax, -2 + i, -2 + i);
+    formula += Form("+@%d*@0^(%d)*(%d)/(%d^(%d)-@1^(%d))", formulaArgs.getSize() - 1, midPower + i, midPower + i + 1, xmax, midPower + i + 1, midPower + i + 1);
     if (i < nhigher) {
       formula += "+";
     }

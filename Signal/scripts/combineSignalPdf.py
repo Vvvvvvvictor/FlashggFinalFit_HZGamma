@@ -44,6 +44,9 @@ for input_file in input_files:
     fin = ROOT.TFile(input_file)
     wsin = fin.Get("wsig_13TeV")
     if not wsin: continue
+
+    mass_point = wsin.var("MH")
+    mass_point.setVal(125.0)
     
     # Extract all objects
     allVars = {}
@@ -58,7 +61,7 @@ for input_file in input_files:
     
     # Find all signal PDFs for this category
     for pdfName, pdf in allPdfs.iteritems():
-        if "extendhggpdfsmrel_" in pdfName and opt.cat in pdfName and "ThisLumi" not in pdfName:
+        if "extenddcb_" in pdfName and opt.cat in pdfName and "ThisLumi" not in pdfName:
             # Store PDF
             all_pdfs.append(pdf)
             print "Found PDF: %s" % pdfName

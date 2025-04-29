@@ -17,7 +17,7 @@ def get_options():
   parser.add_option('--flavs', dest='flavs', default='all', help="Comma separated list of flavors to include. all = sum of all flavors")
   parser.add_option('--loadCatWeights', dest='loadCatWeights', default='', help="Load S/S+B weights for analysis categories (path to weights json file)")
   parser.add_option('--ext', dest='ext', default='test', help="Extension: defines output dir where signal models are saved")
-  parser.add_option("--xvar", dest="xvar", default='CMS_hgg_mass:m_{#gamma#gamma}:GeV', help="x-var (name:title:units)")
+  parser.add_option("--xvar", dest="xvar", default='CMS_hgg_mass:m_{ll#gamma}:GeV', help="x-var (name:title:units)")
   parser.add_option("--mass", dest="mass", default='125', help="Mass of datasets")
   parser.add_option("--MH", dest="MH", default='125', help="Higgs mass (for pdf)")
   parser.add_option("--nBins", dest="nBins", default=160, type='int', help="Number of bins")

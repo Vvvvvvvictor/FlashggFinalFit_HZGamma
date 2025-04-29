@@ -229,19 +229,19 @@ RooAbsPdf* getPdf(PdfModelBuilder &pdfsModel, string type, int order, string *ty
     *typePrefix = "lau";
   }
   else if (type=="BernsteinStepxGau") {
-    pdf = pdfsModel.getBernsteinStepxGau(Form("%s_bern%d",ext,order),order);
+    pdf = pdfsModel.getBernsteinStepxGau(Form("%s_gauxbern%d",ext,order),order);
     *typePrefix = "bern";
   }
   else if (type=="ExponentialStepxGau") {
-    pdf = pdfsModel.getExponentialStepxGau(Form("%s_exp%d",ext,order),order);
+    pdf = pdfsModel.getExponentialStepxGau(Form("%s_gauxexp%d",ext,order),order);
     *typePrefix = "exp";
   }
   else if (type=="PowerLawStepxGau") {
-    pdf = pdfsModel.getPowerLawStepxGau(Form("%s_pow%d",ext,order),order);
+    pdf = pdfsModel.getPowerLawStepxGau(Form("%s_gauxpow%d",ext,order),order);
     *typePrefix = "pow";
   }
   else if (type=="LaurentStepxGau") {
-    pdf = pdfsModel.getLaurentStepxGau(Form("%s_lau%d",ext,order),order);
+    pdf = pdfsModel.getLaurentStepxGau(Form("%s_gauxlau%d",ext,order),order);
     *typePrefix = "lau";
   }
   else if (type=="ExpModGauss"){
@@ -289,6 +289,22 @@ RooAbsPdf* getPdf(PdfModelBuilder &pdfsModel, string type, int order, string *ty
       setPdfParams(pdf, params);
     }
   }
+
+  // Fix parameters containing "sigma" in their name
+  RooArgSet* pdfParamsForFixing = pdf->getParameters(RooArgSet());
+  TIterator* iterFix = pdfParamsForFixing->createIterator();
+  RooRealVar* paramFix;
+
+  while ((paramFix = dynamic_cast<RooRealVar*>(iterFix->Next()))) {
+    std::string paramName = paramFix->GetName();
+    // Check if the parameter name contains "sigma"
+    if (paramName.find("sigma") != std::string::npos && paramName.find("gaux") == std::string::npos) {
+      LOG_INFO << "[INFO] Fixing parameter: " << paramName << std::endl;
+      paramFix->setConstant(true); // Set the parameter to be constant
+    }
+  }
+  delete iterFix;
+  delete pdfParamsForFixing;
   
   return pdf;
 }
@@ -675,7 +691,7 @@ double getGoodnessOfFit(RooRealVar *mass, RooAbsPdf *mpdf, RooDataSet *data, std
   nBinsForMass = 4*(mgg_high-mgg_low);
 
   double prob;
-  int ntoys = 500;
+  int ntoys = 100;
   // Routine to calculate the goodness of fit. 
   name+="_gofTest.pdf";
   RooRealVar norm("norm","norm",data->sumEntries(),0,10E6);
@@ -696,7 +712,7 @@ double getGoodnessOfFit(RooRealVar *mass, RooAbsPdf *mpdf, RooDataSet *data, std
   // The first thing is to check if the number of entries in any bin is < 5 
   // if so, we don't rely on asymptotic approximations
  
-  if ((double)data->sumEntries()/nBinsForMass < 5 ){
+  if ((double)data->sumEntries()/nBinsForMass < 0 ){ // 5
 
     LOG_INFO << "[INFO] Running toys for GOF test " << std::endl;
     // store pre-fit params 

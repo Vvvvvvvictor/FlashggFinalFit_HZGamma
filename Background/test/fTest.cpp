@@ -665,7 +665,7 @@ double getGoodnessOfFit(RooRealVar *mass, RooAbsPdf *mpdf, RooDataSet *data, std
   nBinsForMass = 4*(mgg_high-mgg_low);
 
   double prob;
-  int ntoys = 500;
+  int ntoys = 100;
   // Routine to calculate the goodness of fit. 
   name+="_gofTest.pdf";
   RooRealVar norm("norm","norm",data->sumEntries(),0,10E6);
@@ -686,7 +686,7 @@ double getGoodnessOfFit(RooRealVar *mass, RooAbsPdf *mpdf, RooDataSet *data, std
   // The first thing is to check if the number of entries in any bin is < 5 
   // if so, we don't rely on asymptotic approximations
  
-  if ((double)data->sumEntries()/nBinsForMass < 5 ){
+  if ((double)data->sumEntries()/nBinsForMass < 0 ){ // 5
 
     std::cout << "[INFO] Running toys for GOF test " << std::endl;
     // store pre-fit params 
@@ -1040,40 +1040,10 @@ double getKSProb(RooRealVar *mass, RooAbsPdf *pdf, RooDataSet *data, string name
   // Calculate bin density based on data entries per GeV
   int mgg_low = mass->getMin(), mgg_high = mass->getMax();
   std::cout << "[INFO] KS test mass range: " << mgg_low << " - " << mgg_high << std::endl;
-  double dataSum, eventsPerGeV;
-  if (BLIND){
-    dataSum = data->sumEntries(Form("CMS_hgg_mass < %f || CMS_hgg_mass > %f", blind_low, blind_high));
-    eventsPerGeV = dataSum/((mgg_high-mgg_low) - (blind_high-blind_low));
-  }
-  else{
-    dataSum = data->sumEntries();
-    eventsPerGeV = dataSum/(mgg_high-mgg_low);
-  }
 
   // Determine bin density based on event statistics
-  double binForGeV = 1;
-  if (eventsPerGeV <= 2) {
-    // For lower statistics, use fewer bins per GeV
-    double geVPerBin = ceil(1.0/eventsPerGeV) * 2; // how many GeV needed to get ~1 event per bin
-    binForGeV = 1.0/geVPerBin; // fraction of a bin per GeV
-    
-    // Ensure binForGeV is a simple fraction for clean bin edges
-    // Use 1/2, 1/3, 1/4, 1/5 etc.
-    for (int i = 2; i <= 10; i++) {
-      if (binForGeV >= 1.0/i) {
-        binForGeV = 1.0/i;
-        break;
-      }
-    }
-    // If very low statistics, use at most 1/10 bin per GeV
-    if (binForGeV < 0.1) binForGeV = 0.1;
-  }
-  
+  double binForGeV = 4;  
   int nBin = (mgg_high - mgg_low) * binForGeV;
-
-  double nPerBin;
-  if (BLIND) nPerBin = dataSum / (nBin - (blind_high - blind_low) * binForGeV);
-  else nPerBin = dataSum / nBin;
 
   // Create histograms for data and PDF
   TH1F *dataHist = NULL;
@@ -1116,6 +1086,12 @@ double getKSProb(RooRealVar *mass, RooAbsPdf *pdf, RooDataSet *data, string name
   
   // Generate histogram from PDF
   TH1F *pdfHist = (TH1F*)pdf->createHistogram("pdfHist", *mass, RooFit::Binning(nBin, mgg_low, mgg_high));
+  // Set bin errors to zero
+  if (pdfHist) {
+    for (int i = 0; i <= pdfHist->GetNbinsX() + 1; ++i) { // Include underflow/overflow bins just in case
+      pdfHist->SetBinError(i, 0.0);
+    }
+  }
   
   // Set signal region to zero if blinded
   if (BLIND) {
@@ -1138,29 +1114,9 @@ double getKSProb(RooRealVar *mass, RooAbsPdf *pdf, RooDataSet *data, string name
   // Normalize cumulative distributions
   if (dataCum->Integral() > 0) dataCum->Scale(1.0/dataCum->GetBinContent(dataCum->GetNbinsX()));
   if (pdfCum->Integral() > 0) pdfCum->Scale(1.0/pdfCum->GetBinContent(pdfCum->GetNbinsX()));
-
-  // Extract data points for KS test
-  int npoints = dataCum->GetNbinsX();
-  Double_t *h1 = new Double_t[npoints];
-  Double_t *h2 = new Double_t[npoints];
-
-  for (int i = 1; i <= npoints; i++) {
-    h1[i-1] = dataCum->GetBinContent(i);
-    h2[i-1] = pdfCum->GetBinContent(i);
-  }
-
-  // Count non-zero bins for more accurate KS test
-  int nonZeroBins = 0;
-  for (int i = 1; i <= dataHist->GetNbinsX(); i++) {
-    if (dataHist->GetBinContent(i) > 0) nonZeroBins++;
-  }
   
-  // Calculate KS test probability
-  double ksProb = TMath::KolmogorovTest(nonZeroBins, h1, nonZeroBins, h2, "");
-  
-  // Clean up arrays
-  delete[] h1;
-  delete[] h2;
+  // Calculate KS test probability using the histograms directly
+  double ksProb = dataHist->KolmogorovTest(pdfHist); // Use TH1::KolmogorovTest
 
   // Create plot
   TCanvas *canKS = new TCanvas("canKS", "canKS", 800, 800);
@@ -1222,7 +1178,6 @@ double getKSProb(RooRealVar *mass, RooAbsPdf *pdf, RooDataSet *data, string name
   leg->AddEntry(dataHist, "Data", "EP");
   leg->AddEntry(pdfHist, "PDF", "L");
   leg->AddEntry((TObject*)0, Form("KS Prob = %.4f", ksProb), "");
-  leg->AddEntry((TObject*)0, Form("N Per. Bin = %.4f", nPerBin), "");
   leg->SetBorderSize(0);
   leg->SetFillStyle(0);
   leg->Draw();
@@ -1326,12 +1281,13 @@ double getKSProb(RooRealVar *mass, RooAbsPdf *pdf, RooDataSet *data, string name
  * @param outDir     - Directory for output files
  * @return true if test passes, false otherwise
  */
-bool SpurialSignalTest(TString cat, TString funcType, int order, int sig, TString runPeriod, TString outDir) {
+bool SpurialSignalTest(RooRealVar *input_mass, TString cat, TString funcType, int order, int sig, TString runPeriod, TString outDir) {
   std::cout << "[INFO] Running spurious signal test for category " << cat << " with function " << funcType << " order " << order << std::endl;
   
   // Set mass range and binning
-  double mgg_low = (cat == "VBF1" || cat == "VBF2" || cat == "VBF3") ? 95 : 100;
-  int mgg_high = 170, bin_times = 4;
+  // double mgg_low = (cat == "VBF1" || cat == "VBF2" || cat == "VBF3") ? 105 : 100;
+  double mgg_low = input_mass->getMin(), mgg_high = input_mass->getMax();
+  int bin_times = 4;
   double bin_size = (mgg_high - mgg_low) * bin_times;
   
   // Output file path
@@ -1845,10 +1801,10 @@ int main(int argc, char* argv[]){
 	// functionClasses.push_back("Exponential");
 	// functionClasses.push_back("PowerLaw");
 	// functionClasses.push_back("Laurent");
-  functionClasses.push_back("BernsteinStepxGau");
-  functionClasses.push_back("ExponentialStepxGau");
   functionClasses.push_back("PowerLawStepxGau");
   functionClasses.push_back("LaurentStepxGau");
+  functionClasses.push_back("ExponentialStepxGau");
+  functionClasses.push_back("BernsteinStepxGau");
   functionClasses.push_back("ExpModGauss");
   // functionClasses.push_back("AsymGenGauss");
 	map<string,string> namingMap;
@@ -1916,7 +1872,7 @@ int main(int argc, char* argv[]){
 		RooDataSet *dataFull;
 		RooDataSet *dataFull0;
 		if (isData_) {
-    dataFull = (RooDataSet*)inWS->data(Form("Data_13TeV_%s",catname.c_str()));
+    dataFull0 = (RooDataSet*)inWS->data(Form("Data_13TeV_%s",catname.c_str()));
     /*dataFull= (RooDataSet*) dataFull0->emptyClone();
     for (int i =0 ; i < dataFull0->numEntries() ; i++){
     double m = dataFull0->get(i)->getRealValue("CMS_hgg_mass");
@@ -1931,8 +1887,14 @@ int main(int argc, char* argv[]){
 		if (verbose) std::cout << "[INFO] opened data for  "  << Form("Data_%s",catname.c_str()) <<" - " << dataFull <<std::endl;
     }
 		else 
-    {dataFull = (RooDataSet*)inWS->data(Form("data_mass_%s",catname.c_str()));
+    {dataFull0 = (RooDataSet*)inWS->data(Form("data_mass_%s",catname.c_str()));
 		if (verbose) std::cout << "[INFO] opened data for  "  << Form("data_mass_%s",catname.c_str()) <<" - " << dataFull <<std::endl;
+    }
+    dataFull = (RooDataSet*)dataFull0->emptyClone();
+    for (int i =0 ; i < dataFull0->numEntries() ; i++){
+      double m = dataFull0->get(i)->getRealValue("CMS_hgg_mass");
+      if (m <(mgg_low+0.01) or m > (mgg_high-0.01)) continue;
+      dataFull->add(*dataFull0->get(),1.0);
     }
 
 		RooDataSet *data;
@@ -2004,7 +1966,7 @@ int main(int argc, char* argv[]){
           order++;
         }
         else {
-          passedSSTest = SpurialSignalTest(catName, funcTypeStr, order, 0, runPeriod, outDir);
+          passedSSTest = SpurialSignalTest(mass, catName, funcTypeStr, order, 0, runPeriod, outDir);
           
           if (!passedSSTest) {
             std::cout << "[INFO] " << funcTypeStr << " with order " << order 
@@ -2079,7 +2041,7 @@ int main(int argc, char* argv[]){
 						order++;
 					}
 					else {
-            passedSSTest = SpurialSignalTest(catName, funcTypeStr, order, 0, runPeriod, outDir);
+            passedSSTest = SpurialSignalTest(mass, catName, funcTypeStr, order, 0, runPeriod, outDir);
           
             if (!passedSSTest) {
               std::cout << "[INFO] " << funcTypeStr << " with order " << order 
