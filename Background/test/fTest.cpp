@@ -289,12 +289,35 @@ RooAbsPdf* getPdf(PdfModelBuilder &pdfsModel, string type, int order, string *ty
   return pdf;
 }
 
-RooFitResult* Chi2Fit(RooChi2Var chi2_){
+RooFitResult* NLLFit(RooNLLVar nll_, int printLevel_ = -1, double eps_ = 100, bool offSet_ = false, int strategy_ = 0){
   // Your minimization settings (assuming these variables are defined)
-  int printLevel_ = -1; // Example value
-  double eps_ = 100;    // Example value
-  bool offSet_ = false;  // Example value
-  int strategy_ = 0;   // Example value
+  // int printLevel_ = -1; // Example value
+  // double eps_ = 100;    // Example value
+  // bool offSet_ = false;  // Example value
+  // int strategy_ = 0;   // Example value
+  // Create the minimizer instance using the NLL variable calculated in sidebands
+  RooMinimizer mini(nll_);
+  mini.setPrintLevel(printLevel_);
+  mini.setEps(eps_);
+  mini.setOffsetting(offSet_);
+  mini.setStrategy(strategy_);
+  // Perform the minimization
+  mini.minimize("Minuit2", "migrad"); // Or "Minuit" if preferred/needed
+  mini.hesse(); // Calculate uncertainties using HESSE
+  // Optional: Get the fit result object
+  RooFitResult *fitTest = mini.save("fitResult_Sidebands", "Fit Result from Sideband NLL");
+  // if (fitTest) {
+  //     fitTest->Print("v"); // Print detailed fit result
+  // }
+  return fitTest;
+}
+
+RooFitResult* Chi2Fit(RooChi2Var chi2_, int printLevel_ = -1, double eps_ = 100, bool offSet_ = false, int strategy_ = 0){
+  // Your minimization settings (assuming these variables are defined)
+  // int printLevel_ = -1; // Example value
+  // double eps_ = 100;    // Example value
+  // bool offSet_ = false;  // Example value
+  // int strategy_ = 0;   // Example value
   // Create the minimizer instance using the chi2 variable calculated in sidebands
   RooMinimizer mini(chi2_);
   mini.setPrintLevel(printLevel_);
@@ -306,9 +329,9 @@ RooFitResult* Chi2Fit(RooChi2Var chi2_){
   mini.hesse(); // Calculate uncertainties using HESSE
   // Optional: Get the fit result object
   RooFitResult *fitTest = mini.save("fitResult_Sidebands", "Fit Result from Sideband Chi2");
-  if (fitTest) {
-      fitTest->Print("v"); // Print detailed fit result
-  }
+  // if (fitTest) {
+  //     fitTest->Print("v"); // Print detailed fit result
+  // }
   return fitTest;
 }
 
@@ -393,20 +416,26 @@ void runFit(RooAbsPdf *pdf, RooAbsPdf *pdf_SB, RooDataSet *data, RooDataSet *dat
                      
       // NLL fit
       RooNLLVar nll("nll", "Negative Log Likelihood", *pdf_SB, *data_SB);
-      RooMinimizer mini(nll);
+      // fitTest = NLLFit(nll, -1, 1, false, 0);
+      // fitTest = NLLFit(nll, -1, 0.1, true, 0);
+
+      // RooMinimizer mini(nll);
 
       // Chi2 fit
-      // RooDataHist* data_hist = data_SB->binnedClone();
-      // RooChi2Var chi2("chi2", "chi2", *pdf_SB, *data_hist);
+      RooDataHist* data_hist = data_SB->binnedClone();
+      RooChi2Var chi2("chi2", "chi2", *pdf_SB, *data_hist);
+      fitTest = Chi2Fit(chi2, -1, 1, false, 0);
+      fitTest = Chi2Fit(chi2, -1, 0.1, true, 0);
+
       // RooMinimizer mini(chi2);
 
-      mini.setPrintLevel(-1);     // 关闭输出
-      mini.setEps(100);           // 设置精度
-      mini.setOffsetting(false);  // 禁用偏移
-      mini.setStrategy(0);        // 使用最小化策略0（快速但可能不精确）
-      mini.minimize("Minuit2", "migrad");  // 使用Minuit2+migrad算法
-      mini.hesse();                        // 计算Hesse矩阵（误差估计）
-      fitTest = mini.save();
+      // mini.setPrintLevel(-1);     // 关闭输出
+      // mini.setEps(100);           // 设置精度
+      // mini.setOffsetting(false);  // 禁用偏移
+      // mini.setStrategy(0);        // 使用最小化策略0（快速但可能不精确）
+      // mini.minimize("Minuit2", "migrad");  // 使用Minuit2+migrad算法
+      // mini.hesse();                        // 计算Hesse矩阵（误差估计）
+      // fitTest = mini.save();
 
       // RooDataHist* data_hist = data->binnedClone();
       // RooChi2Var chi2_("chi2Var", "chi2Var", *pdf, *data_hist, RooFit::Range("lowSideband,highSideband"), RooFit::Save(true), RooFit::SumW2Error(kTRUE), RooFit::Extended(true));
@@ -2226,13 +2255,13 @@ int main(int argc, char* argv[]){
             // if(!BLIND_FIT) plot(mass,/*RooAbsPdf*/bkgPdf,data,Form("%s/%s%d_cat%d.png",outDir.c_str(),funcType->c_str(),order,(cat+catOffset)),flashggCats_,fitStatus,&gofProb);
             // else plot(mass,/*RooAbsPdf*/bkgPdf_SB,data_SB,Form("%s/%s%d_cat%d.png",outDir.c_str(),funcType->c_str(),order,(cat+catOffset)),flashggCats_,fitStatus,&gofProb);
             plot(mass,/*RooAbsPdf*/bkgPdf,data,Form("%s/%s%d_cat%d.png",outDir.c_str(),funcType->c_str(),order,(cat+catOffset)),flashggCats_,fitStatus,&gofProb);
-            fprintf(dfile,"p-value(chi2) = %.2f\n",gofProb);
+            fprintf(dfile,"p-value(chi2) = %.2f, ",gofProb);
             // plot(mass,/*RooAbsPdf*/bkgPdf_SB,data_SB,Form("%s/%s%dSB_cat%d.png",outDir.c_str(),funcType->c_str(),order,(cat+catOffset)),flashggCats_,fitStatus,&gofProb);
                         
             // Calculate KS test probability
             double ksProb = getKSProb(mass, bkgPdf, dataFull, Form("%s/%s%d_cat%d",outDir.c_str(),funcType->c_str(),order,(cat+catOffset)));
             cout << "[INFO] \t KS test probability = " << ksProb << endl;
-            fprintf(dfile,"KS test probability = %.2f\n",ksProb);
+            fprintf(dfile,"KS test probability = %.2f, ",ksProb);
 
 						if ((prob < upperEnvThreshold) ) { // Looser requirements for the envelope
 
