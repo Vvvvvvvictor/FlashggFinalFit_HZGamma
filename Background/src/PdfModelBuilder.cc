@@ -10,6 +10,7 @@
 #include "../interface/RooPowerLawSum.h"
 #include "RooKeysPdf.h"
 #include "RooAddPdf.h"
+#include "RooProdPdf.h"
 #include "RooDataHist.h"
 #include "RooHistPdf.h"
 #include "RooArgList.h"
@@ -109,10 +110,11 @@ RooAbsPdf* PdfModelBuilder::getChebychev(string prefix, int order){
 
 }
 
-RooAbsPdf *PdfModelBuilder::getBernsteinStepxGau(string prefix, int order){
+RooAbsPdf *PdfModelBuilder::getBernsteinStepxGau(string prefix, int order, bool doBlind){
   RooRealVar *mean = new RooRealVar(Form("%s_mean", prefix.c_str()), Form("%s_mean", prefix.c_str()), 0.);
-  RooRealVar *sigma = new RooRealVar(Form("%s_sigma", prefix.c_str()), Form("%s_sigma", prefix.c_str()), 5., 1., 10.);
-  RooRealVar *step = new RooRealVar(Form("%s_step", prefix.c_str()), Form("%s_step", prefix.c_str()), 105., 95., 115.);
+  RooRealVar *sigma = new RooRealVar(Form("%s_sigma", prefix.c_str()), Form("%s_sigma", prefix.c_str()), 4.0762, 0., 15.);
+  // RooRealVar *step = new RooRealVar(Form("%s_step", prefix.c_str()), Form("%s_step", prefix.c_str()), 105., 95., 115.);
+  RooRealVar *step = new RooRealVar(Form("%s_step", prefix.c_str()), Form("%s_step", prefix.c_str()), 107.9, 90., 120.);
   RooArgList *coeffList = new RooArgList();
   for (int i = 0; i < order; i++) {
     string name = Form("%s_b%d", prefix.c_str(), i);
@@ -120,19 +122,35 @@ RooAbsPdf *PdfModelBuilder::getBernsteinStepxGau(string prefix, int order){
     params.insert(pair<string, RooRealVar*>(name, param));
     coeffList->add(*params[name]);
   }
+  RooAbsPdf* basePdf = nullptr;
   if (order < 7) {
-    return new RooGaussStepBernstein(prefix.c_str(), prefix.c_str(), *obs_var, *mean, *sigma, *step, *coeffList);
+      basePdf = new RooGaussStepBernstein(
+          prefix.c_str(), prefix.c_str(), 
+          *obs_var, *mean, *sigma, *step, *coeffList
+      );
+  } else {
+      return nullptr;
   }
-  else {
-    return NULL;
+  if (doBlind) {
+    string formula = "((@0 < 120)? 1:((@0 > 130)? 1:0))";
+    RooGenericPdf *blindPdf = new RooGenericPdf(Form("%s_blind", prefix.c_str()), Form("%s_blind", prefix.c_str()), formula.c_str(), RooArgList(*obs_var));
+    
+    RooProdPdf* sbPdf = new RooProdPdf(
+        Form("%s_SB", prefix.c_str()),
+        "Blinded PDF (exclude 120-130)",
+        RooArgList(*basePdf, *blindPdf)
+    );
+    return sbPdf;
   }
+  return basePdf;
 }
 
-RooAbsPdf *PdfModelBuilder::getPowerLawStepxGau(string prefix, int order){
+RooAbsPdf *PdfModelBuilder::getPowerLawStepxGau(string prefix, int order, bool doBlind){
   if (order%2==0 || order > 7) return NULL;
   RooRealVar *mean = new RooRealVar(Form("%s_mean", prefix.c_str()), Form("%s_mean", prefix.c_str()), 0.);
   RooRealVar *sigma = new RooRealVar(Form("%s_sigma", prefix.c_str()), Form("%s_sigma", prefix.c_str()), 5., 1., 10.);
   RooRealVar *step = new RooRealVar(Form("%s_step", prefix.c_str()), Form("%s_step", prefix.c_str()), 105., 95., 115.);
+  // RooRealVar *step = new RooRealVar(Form("%s_step", prefix.c_str()), Form("%s_step", prefix.c_str()), 110., 95., 115.);
   RooArgList *coeffList = new RooArgList();
   RooArgList formulaArgs;
   string formula = "TMath::Min(TMath::Max((@0-@1)*153.85, 0.0), 1.0)*(";
@@ -159,10 +177,23 @@ RooAbsPdf *PdfModelBuilder::getPowerLawStepxGau(string prefix, int order){
   RooGenericPdf *stepPdf = new RooGenericPdf(Form("%s_step_pow%d", prefix.c_str(), order), Form("%s_step_pow%d", prefix.c_str(), order), formula.c_str(), formulaArgs);
   RooGaussModel *gau = new RooGaussModel(Form("%s_gau_pow%d", prefix.c_str(), order), Form("%s_gau_pow%d", prefix.c_str(), order), *obs_var, *mean, *sigma);
   RooFFTConvPdf *gauxpow = new RooFFTConvPdf(Form("%s_gauxpow%d", prefix.c_str(), order), Form("%s_gauxpow%d", prefix.c_str(), order), *obs_var, *stepPdf, *gau);
+
+  if (doBlind) {
+    string formula_SB = "((@0 < 120)? 1:((@0 > 130)? 1:0))";
+    RooGenericPdf *blindPdf = new RooGenericPdf(Form("%s_blind", prefix.c_str()), Form("%s_blind", prefix.c_str()), formula_SB.c_str(), RooArgList(*obs_var));
+    
+    RooProdPdf* gauxpow_SB = new RooProdPdf(
+        Form("%s_SB", prefix.c_str()),
+        "Blinded PDF (exclude 120-130)",
+        RooArgList(*gauxpow, *blindPdf)
+    );
+    return gauxpow_SB;
+  }
+
   return gauxpow;
 }
 
-RooAbsPdf *PdfModelBuilder::getExponentialStepxGau(string prefix, int order){
+RooAbsPdf *PdfModelBuilder::getExponentialStepxGau(string prefix, int order, bool doBlind){
   if (order%2==0 || order > 7) return NULL;
   RooRealVar *mean = new RooRealVar(Form("%s_mean", prefix.c_str()), Form("%s_mean", prefix.c_str()), 0.);
   RooRealVar *sigma = new RooRealVar(Form("%s_sigma", prefix.c_str()), Form("%s_sigma", prefix.c_str()), 5., 1., 10.);
@@ -193,10 +224,23 @@ RooAbsPdf *PdfModelBuilder::getExponentialStepxGau(string prefix, int order){
   RooGenericPdf *stepPdf = new RooGenericPdf(Form("%s_step_exp%d", prefix.c_str(), order), Form("%s_step_exp%d", prefix.c_str(), order), formula.c_str(), formulaArgs);
   RooGaussModel *gau = new RooGaussModel(Form("%s_gau_exp%d", prefix.c_str(), order), Form("%s_gau_exp%d", prefix.c_str(), order), *obs_var, *mean, *sigma);
   RooFFTConvPdf *gauxexp = new RooFFTConvPdf(Form("%s_gauxexp%d", prefix.c_str(), order), Form("%s_gauxexp%d", prefix.c_str(), order), *obs_var, *stepPdf, *gau);
+  
+  if (doBlind) {
+    string formula_SB = "((@0 < 120)? 1:((@0 > 130)? 1:0))";
+    RooGenericPdf *blindPdf = new RooGenericPdf(Form("%s_blind", prefix.c_str()), Form("%s_blind", prefix.c_str()), formula_SB.c_str(), RooArgList(*obs_var));
+    
+    RooProdPdf* gauxexp_SB = new RooProdPdf(
+        Form("%s_SB", prefix.c_str()),
+        "Blinded PDF (exclude 120-130)",
+        RooArgList(*gauxexp, *blindPdf)
+    );
+    return gauxexp_SB;
+  }
+
   return gauxexp;
 }
 
-RooAbsPdf *PdfModelBuilder::getLaurentStepxGau(string prefix, int order){
+RooAbsPdf *PdfModelBuilder::getLaurentStepxGau(string prefix, int order, bool doBlind){
   if (order > 7) return NULL;
   RooRealVar *mean = new RooRealVar(Form("%s_mean", prefix.c_str()), Form("%s_mean", prefix.c_str()), 0.);
   RooRealVar *sigma = new RooRealVar(Form("%s_sigma", prefix.c_str()), Form("%s_sigma", prefix.c_str()), 5., 1., 10.);
@@ -263,6 +307,19 @@ RooAbsPdf *PdfModelBuilder::getLaurentStepxGau(string prefix, int order){
   RooGenericPdf *stepPdf = new RooGenericPdf(Form("%s_step_lau%d", prefix.c_str(), order), Form("%s_step_lau%d", prefix.c_str(), order), formula.c_str(), formulaArgs);
   RooGaussModel *gau = new RooGaussModel(Form("%s_gau_lau%d", prefix.c_str(), order), Form("%s_gau_lau%d", prefix.c_str(), order), *obs_var, *mean, *sigma);
   RooFFTConvPdf *gauxlau = new RooFFTConvPdf(Form("%s_gauxlau%d", prefix.c_str(), order), Form("%s_gauxlau%d", prefix.c_str(), order), *obs_var, *stepPdf, *gau);
+  
+  if (doBlind) {
+    string formula_SB = "((@0 < 120)? 1:((@0 > 130)? 1:0))";
+    RooGenericPdf *blindPdf = new RooGenericPdf(Form("%s_blind", prefix.c_str()), Form("%s_blind", prefix.c_str()), formula_SB.c_str(), RooArgList(*obs_var));
+    
+    RooProdPdf* gauxlau_SB = new RooProdPdf(
+        Form("%s_SB", prefix.c_str()),
+        "Blinded PDF (exclude 120-130)",
+        RooArgList(*gauxlau, *blindPdf)
+    );
+    return gauxlau_SB;
+  }
+  
   return gauxlau;
 }
 
@@ -543,7 +600,7 @@ RooAbsPdf* PdfModelBuilder::getPdfFromFile(string &prefix){
   return pdf;
 }
 
-RooAbsPdf* PdfModelBuilder::getExpModGaussian(string prefix){
+RooAbsPdf* PdfModelBuilder::getExpModGaussian(string prefix, bool doBlind){
   // Define parameters: mu, sigma and lambda
   RooRealVar *mu = new RooRealVar(Form("%s_mu",prefix.c_str()), Form("%s_mu",prefix.c_str()), 105., 95., 120.);
   RooRealVar *sigma = new RooRealVar(Form("%s_sigma",prefix.c_str()), Form("%s_sigma",prefix.c_str()), 3., 1., 10.); // Adjusted lower limit
@@ -567,12 +624,24 @@ RooAbsPdf* PdfModelBuilder::getExpModGaussian(string prefix){
   string formula = "(@3/2) * exp(min(20.0, (@3/2) * (2*@1 + @3*@2*@2 - 2*@0))) * TMath::Erfc(((@1 + @3*@2*@2 - @0)/(sqrt(2)*@2)))";
   
   // Create RooGenericPdf with the stabilized formula
-  RooGenericPdf *emg = new RooGenericPdf(Form("%s_modgau", prefix.c_str()), "Exponentially Modified Gaussian", formula.c_str(), formulaVars);
-  
-  return emg;
+  RooGenericPdf *modgau = new RooGenericPdf(Form("%s_modgau", prefix.c_str()), "Exponentially Modified Gaussian", formula.c_str(), formulaVars);
+    
+  if (doBlind) {
+    string formula_SB = "((@0 < 120)? 1:((@0 > 130)? 1:0))";
+    RooGenericPdf *blindPdf = new RooGenericPdf(Form("%s_blind", prefix.c_str()), Form("%s_blind", prefix.c_str()), formula_SB.c_str(), RooArgList(*obs_var));
+    
+    RooProdPdf* modgau_SB = new RooProdPdf(
+        Form("%s_SB", prefix.c_str()),
+        "Blinded PDF (exclude 120-130)",
+        RooArgList(*modgau, *blindPdf)
+    );
+    return modgau_SB;
+  }
+ 
+  return modgau;
 }
 
-RooAbsPdf* PdfModelBuilder::getAsymGenGaussian(string prefix){
+RooAbsPdf* PdfModelBuilder::getAsymGenGaussian(string prefix, bool doBlind){
   // Define parameters: beta, alpha and mu
   // This function implements the formula: beta/(2*alpha*Gamma(1/beta)) * exp(-((|x-mu|/alpha)^beta))
   // where:
@@ -606,7 +675,19 @@ RooAbsPdf* PdfModelBuilder::getAsymGenGaussian(string prefix){
   
   // Create the generalized Gaussian PDF with the specified formula
   RooGenericPdf *agg = new RooGenericPdf(prefix.c_str(), "Generalized Gaussian Distribution", formula.c_str(), formulaVars);
-  
+      
+  if (doBlind) {
+    string formula_SB = "((@0 < 120)? 1:((@0 > 130)? 1:0))";
+    RooGenericPdf *blindPdf = new RooGenericPdf(Form("%s_blind", prefix.c_str()), Form("%s_blind", prefix.c_str()), formula_SB.c_str(), RooArgList(*obs_var));
+    
+    RooProdPdf* agg_SB = new RooProdPdf(
+        Form("%s_SB", prefix.c_str()),
+        "Blinded PDF (exclude 120-130)",
+        RooArgList(*agg, *blindPdf)
+    );
+    return agg_SB;
+  }
+
   return agg;
 }
 
@@ -668,8 +749,8 @@ void PdfModelBuilder::addBkgPdf(string type, int nParams, string name, bool cach
   if (type=="Laurent") pdf = getLaurentSeries(name,nParams);
   if (type=="KeysPdf") pdf = getKeysPdf(name);
   if (type=="File") pdf = getPdfFromFile(name);
-  if (type=="ExpModGaussian") pdf = getExpModGaussian(name);
-  if (type=="AsymGenGaussian") pdf = getAsymGenGaussian(name);
+  // if (type=="ExpModGaussian") pdf = getExpModGaussian(name);
+  // if (type=="AsymGenGaussian") pdf = getAsymGenGaussian(name);
 
   if (cache) {
     wsCache->import(*pdf);
