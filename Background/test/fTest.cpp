@@ -2190,7 +2190,7 @@ int main(int argc, char* argv[]){
             fprintf(dfile,"%s %d\n",funcType->c_str(),order);
             cout << "[INFO] get pdf called " << *funcType << " " << order << " " << bkgPdf << endl;
             cout << "[INFO] Start Spurious Signal test for " << *funcType << " " << order << " " << bkgPdf << endl;
-            // passedSSTest = SpurialSignalTest(mass, catName, funcTypeStr, order, 0, runPeriod, outDir);
+            passedSSTest = SpurialSignalTest(mass, catName, funcTypeStr, order, 0, runPeriod, outDir);
             if (!passedSSTest) {
               std::cout << "[INFO] " << funcTypeStr << " with order " << order 
                         << " failed SpurialSignalTest, skipping to next order" << std::endl;

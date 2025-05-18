@@ -161,20 +161,24 @@ fi
 
 # Modify the fitting range if necessary
 if [ "$CATS" = "VBF0" ]; then
-  RANGELOW=" --mgg_low 105 --mgg_high 170"
-elif [ "$CATS" = "VBF1" ]; then
-  RANGELOW=" --mgg_low 100 --mgg_high 165"
-elif [ "$CATS" = "VBF2" ]; then
-  RANGELOW=" --mgg_low 95 --mgg_high 161"
-elif [ "$CATS" = "VBF3" ]; then
-  RANGELOW=" --mgg_low 95 --mgg_high 160"
+  RANGE=" --mgg_low 100"
+elif [ "$CATS" = "VBF1" ] || [ "$CATS" = "VBF2" ] || [ "$CATS" = "VBF3" ]; then
+  RANGE=" --mgg_low 95"
+elif [ "$CATS" = "ggH0" ]; then
+  RANGE=" --mgg_low 107 --mgg_high 170"
+elif [ "$CATS" = "ggH1" ]; then
+  RANGE=" --mgg_low 105 --mgg_high 170"
+elif [ "$CATS" = "ggH2" ]; then
+  RANGE=" --mgg_low 103 --mgg_high 168"
+elif [ "$CATS" = "ggH3" ]; then
+  RANGE=" --mgg_low 97 --mgg_high 162"
 else
-  RANGELOW=""
+  RANGE=""
 fi
-echo $RANGELOW
+echo $RANGE
 
-echo " ./bin/fTest -i $FILE --saveMultiPdf $OUTDIR/CMS-HGG_multipdf_$EXT_$CATS.root  -D $OUTDIR/bkgfTest$DATAEXT -f $CATS $RANGELOW $OPT --year $YEAR --catOffset $CATOFFSET"
-./bin/fTest -i $FILE --saveMultiPdf $OUTDIR/CMS-HGG_multipdf_$EXT_$CATS.root  -D $OUTDIR/bkgfTest$DATAEXT -f $CATS $RANGELOW $OPT --year $YEAR --catOffset $CATOFFSET
+echo " ./bin/fTest_tmp -i $FILE --saveMultiPdf $OUTDIR/CMS-HGG_multipdf_$EXT_$CATS.root  -D $OUTDIR/bkgfTest$DATAEXT -f $CATS $RANGE $OPT --year $YEAR --catOffset $CATOFFSET --blindFit"
+./bin/fTest_tmp -i $FILE --saveMultiPdf $OUTDIR/CMS-HGG_multipdf_$EXT_$CATS.root  -D $OUTDIR/bkgfTest$DATAEXT -f $CATS $RANGE $OPT --year $YEAR --catOffset $CATOFFSET --blindFit
 FTEST_RETURN=$?
 echo "fTest return code: $FTEST_RETURN"
 
