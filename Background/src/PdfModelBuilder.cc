@@ -145,10 +145,12 @@ RooAbsPdf *PdfModelBuilder::getBernsteinStepxGau(string prefix, int order, bool 
   return basePdf;
 }
 
-RooAbsPdf *PdfModelBuilder::getPowerLawStepxGau(string prefix, int order, bool doBlind){
+RooAbsPdf *PdfModelBuilder::getPowerLawStepxGau(string prefix, int order, bool doBlind, bool di_gauss = false, bool const_cp1 = false){
   if (order%2==0 || order > 7) return NULL;
   RooRealVar *mean = new RooRealVar(Form("%s_mean", prefix.c_str()), Form("%s_mean", prefix.c_str()), 0.);
   RooRealVar *sigma = new RooRealVar(Form("%s_sigma", prefix.c_str()), Form("%s_sigma", prefix.c_str()), 5., 1., 10.);
+  RooRealVar *sigma2 = new RooRealVar(Form("%s_sigma2", prefix.c_str()), Form("%s_sigma2", prefix.c_str()), 5., 0.1, 10.);
+  RooRealVar *gauc = new RooRealVar(Form("%s_gauc", prefix.c_str()), Form("%s_gauc", prefix.c_str()), 0.79677, 0., 10.);
   RooRealVar *step = new RooRealVar(Form("%s_step", prefix.c_str()), Form("%s_step", prefix.c_str()), 105., 95., 115.);
   // RooRealVar *step = new RooRealVar(Form("%s_step", prefix.c_str()), Form("%s_step", prefix.c_str()), 110., 95., 115.);
   RooArgList *coeffList = new RooArgList();
@@ -165,6 +167,7 @@ RooAbsPdf *PdfModelBuilder::getPowerLawStepxGau(string prefix, int order, bool d
     string cpName = Form("%s_cp%d", prefix.c_str(), i + 1, order);
     RooRealVar *p = new RooRealVar(pName.c_str(), pName.c_str(), -4.0-i, -15.0, 0.0);
     RooRealVar *cp = new RooRealVar(cpName.c_str(), cpName.c_str(), 0.1 * (i + 1), 0., 1.);
+    if ((const_cp1) && (i == 0)) cp->setConstant(true);
     formulaArgs.add(*p);
     formulaArgs.add(*cp);
     formula += Form("@%d*@0^(@%d)*(1+@%d)/(%d^(1+@%d)-@1^(1+@%d))", formulaArgs.getSize() - 1, formulaArgs.getSize() - 2, formulaArgs.getSize() - 2, xmax, formulaArgs.getSize() - 2, formulaArgs.getSize() - 2);
@@ -176,27 +179,44 @@ RooAbsPdf *PdfModelBuilder::getPowerLawStepxGau(string prefix, int order, bool d
   cout << "FORM -- " << formula << endl;
   RooGenericPdf *stepPdf = new RooGenericPdf(Form("%s_step_pow%d", prefix.c_str(), order), Form("%s_step_pow%d", prefix.c_str(), order), formula.c_str(), formulaArgs);
   RooGaussModel *gau = new RooGaussModel(Form("%s_gau_pow%d", prefix.c_str(), order), Form("%s_gau_pow%d", prefix.c_str(), order), *obs_var, *mean, *sigma);
-  RooFFTConvPdf *gauxpow = new RooFFTConvPdf(Form("%s_gauxpow%d", prefix.c_str(), order), Form("%s_gauxpow%d", prefix.c_str(), order), *obs_var, *stepPdf, *gau);
+  RooGaussModel *gau2 = new RooGaussModel(Form("%s_gau2_pow%d", prefix.c_str(), order), Form("%s_gau2_pow%d", prefix.c_str(), order), *obs_var, *mean, *sigma2);
+  RooAddPdf *addgau = new RooAddPdf(Form("%s_addgau_pow%d", prefix.c_str(), order), Form("%s_addgau_pow%d", prefix.c_str(), order), *gau2, *gau, *gauc);
+  string formula_SB = "((@0 < 120)? 1:((@0 > 130)? 1:0))";
+  RooGenericPdf *blindPdf = new RooGenericPdf(Form("%s_blind", prefix.c_str()), Form("%s_blind", prefix.c_str()), formula_SB.c_str(), RooArgList(*obs_var));
 
-  if (doBlind) {
-    string formula_SB = "((@0 < 120)? 1:((@0 > 130)? 1:0))";
-    RooGenericPdf *blindPdf = new RooGenericPdf(Form("%s_blind", prefix.c_str()), Form("%s_blind", prefix.c_str()), formula_SB.c_str(), RooArgList(*obs_var));
-    
-    RooProdPdf* gauxpow_SB = new RooProdPdf(
-        Form("%s_SB", prefix.c_str()),
-        "Blinded PDF (exclude 120-130)",
-        RooArgList(*gauxpow, *blindPdf)
-    );
-    return gauxpow_SB;
+  if (di_gauss){
+    RooFFTConvPdf *digauxpow = new RooFFTConvPdf(Form("%s_digauxpow%d", prefix.c_str(), order), Form("%s_digauxpow%d", prefix.c_str(), order), *obs_var, *stepPdf, *addgau);
+    digauxpow->setBufferFraction(0.5);
+    if (doBlind) {      
+      RooProdPdf* digauxpow_SB = new RooProdPdf(
+          Form("%s_SB", prefix.c_str()),
+          "Blinded PDF (exclude 120-130)",
+          RooArgList(*digauxpow, *blindPdf)
+      );
+      return digauxpow_SB;
+    }
+    return digauxpow;
+  } else {
+    RooFFTConvPdf *gauxpow = new RooFFTConvPdf(Form("%s_gauxpow%d", prefix.c_str(), order), Form("%s_gauxpow%d", prefix.c_str(), order), *obs_var, *stepPdf, *gau);
+    gauxpow->setBufferFraction(0.5);
+    if (doBlind) {
+      RooProdPdf* gauxpow_SB = new RooProdPdf(
+          Form("%s_SB", prefix.c_str()),
+          "Blinded PDF (exclude 120-130)",
+          RooArgList(*gauxpow, *blindPdf)
+      );
+      return gauxpow_SB;
+    }
+    return gauxpow;
   }
-
-  return gauxpow;
 }
 
-RooAbsPdf *PdfModelBuilder::getExponentialStepxGau(string prefix, int order, bool doBlind){
+RooAbsPdf *PdfModelBuilder::getExponentialStepxGau(string prefix, int order, bool doBlind, bool di_gauss = false, bool const_cp1 = false){
   if (order%2==0 || order > 7) return NULL;
   RooRealVar *mean = new RooRealVar(Form("%s_mean", prefix.c_str()), Form("%s_mean", prefix.c_str()), 0.);
   RooRealVar *sigma = new RooRealVar(Form("%s_sigma", prefix.c_str()), Form("%s_sigma", prefix.c_str()), 5., 1., 10.);
+  RooRealVar *sigma2 = new RooRealVar(Form("%s_sigma2", prefix.c_str()), Form("%s_sigma2", prefix.c_str()), 5., 0.1, 10.);
+  RooRealVar *gauc = new RooRealVar(Form("%s_gauc", prefix.c_str()), Form("%s_gauc", prefix.c_str()), 0.79677, 0., 10.);
   RooRealVar *step = new RooRealVar(Form("%s_step", prefix.c_str()), Form("%s_step", prefix.c_str()), 105., 95., 115.);
   RooArgList *coeffList = new RooArgList();
   RooArgList formulaArgs;
@@ -208,10 +228,11 @@ RooAbsPdf *PdfModelBuilder::getExponentialStepxGau(string prefix, int order, boo
   int xmax = obs_var->getMax();
 
   for (int i = 0; i < order; i += 2) {
-    string pName = Form("%s_p%d", prefix.c_str(), i + 1, order);
-    string cpName = Form("%s_cp%d", prefix.c_str(), i + 1, order);
+    string pName = Form("%s_p%d", prefix.c_str(), i + 1);
+    string cpName = Form("%s_cp%d", prefix.c_str(), i + 1);
     RooRealVar *p = new RooRealVar(pName.c_str(), pName.c_str(), -0.05*i, -0.5, 0.0);
     RooRealVar *cp = new RooRealVar(cpName.c_str(), cpName.c_str(), 0.9, 0., 1.);
+    if ((const_cp1) && (i == 0)) cp->setConstant(true);
     formulaArgs.add(*p);
     formulaArgs.add(*cp);
     formula += Form("@%d*TMath::Exp(@%d*@0)*@%d/(%d^(1+@%d)-@1^(1+@%d))", formulaArgs.getSize() - 1, formulaArgs.getSize() - 2, formulaArgs.getSize() - 1, xmax, formulaArgs.getSize() - 2, formulaArgs.getSize() - 2);
@@ -223,28 +244,43 @@ RooAbsPdf *PdfModelBuilder::getExponentialStepxGau(string prefix, int order, boo
   cout << "FORM -- " << formula << endl;
   RooGenericPdf *stepPdf = new RooGenericPdf(Form("%s_step_exp%d", prefix.c_str(), order), Form("%s_step_exp%d", prefix.c_str(), order), formula.c_str(), formulaArgs);
   RooGaussModel *gau = new RooGaussModel(Form("%s_gau_exp%d", prefix.c_str(), order), Form("%s_gau_exp%d", prefix.c_str(), order), *obs_var, *mean, *sigma);
-  RooFFTConvPdf *gauxexp = new RooFFTConvPdf(Form("%s_gauxexp%d", prefix.c_str(), order), Form("%s_gauxexp%d", prefix.c_str(), order), *obs_var, *stepPdf, *gau);
+  RooGaussModel *gau2 = new RooGaussModel(Form("%s_gau2_exp%d", prefix.c_str(), order), Form("%s_gau2_exp%d", prefix.c_str(), order), *obs_var, *mean, *sigma2);
+  RooAddPdf *addgau = new RooAddPdf(Form("%s_addgau_exp%d", prefix.c_str(), order), Form("%s_addgau_exp%d", prefix.c_str(), order), *gau2, *gau, *gauc);
+  string formula_SB = "((@0 < 120)? 1:((@0 > 130)? 1:0))";
+  RooGenericPdf *blindPdf = new RooGenericPdf(Form("%s_blind", prefix.c_str()), Form("%s_blind", prefix.c_str()), formula_SB.c_str(), RooArgList(*obs_var));
   
-  if (doBlind) {
-    string formula_SB = "((@0 < 120)? 1:((@0 > 130)? 1:0))";
-    RooGenericPdf *blindPdf = new RooGenericPdf(Form("%s_blind", prefix.c_str()), Form("%s_blind", prefix.c_str()), formula_SB.c_str(), RooArgList(*obs_var));
-    
-    RooProdPdf* gauxexp_SB = new RooProdPdf(
-        Form("%s_SB", prefix.c_str()),
-        "Blinded PDF (exclude 120-130)",
-        RooArgList(*gauxexp, *blindPdf)
-    );
-    return gauxexp_SB;
+  if (di_gauss){
+    RooFFTConvPdf *digauxexp = new RooFFTConvPdf(Form("%s_digauxexp%d", prefix.c_str(), order), Form("%s_digauxexp%d", prefix.c_str(), order), *obs_var, *stepPdf, *addgau);
+    if (doBlind) {      
+      RooProdPdf* digauxexp_SB = new RooProdPdf(
+          Form("%s_SB", prefix.c_str()),
+          "Blinded PDF (exclude 120-130)",
+          RooArgList(*digauxexp, *blindPdf)
+      );
+      return digauxexp_SB;
+    }
+    return digauxexp;
+  } else {
+    RooFFTConvPdf *gauxexp = new RooFFTConvPdf(Form("%s_gauxexp%d", prefix.c_str(), order), Form("%s_gauxexp%d", prefix.c_str(), order), *obs_var, *stepPdf, *gau);
+    if (doBlind) {
+      RooProdPdf* gauxexp_SB = new RooProdPdf(
+          Form("%s_SB", prefix.c_str()),
+          "Blinded PDF (exclude 120-130)",
+          RooArgList(*gauxexp, *blindPdf)
+      );
+      return gauxexp_SB;
+    }
+    return gauxexp;
   }
-
-  return gauxexp;
 }
 
-RooAbsPdf *PdfModelBuilder::getLaurentStepxGau(string prefix, int order, bool doBlind){
+RooAbsPdf *PdfModelBuilder::getLaurentStepxGau(string prefix, int order, bool doBlind, bool di_gauss = false){
   if (order > 7) return NULL;
   RooRealVar *mean = new RooRealVar(Form("%s_mean", prefix.c_str()), Form("%s_mean", prefix.c_str()), 0.);
   RooRealVar *sigma = new RooRealVar(Form("%s_sigma", prefix.c_str()), Form("%s_sigma", prefix.c_str()), 5., 1., 10.);
-  RooRealVar *step = new RooRealVar(Form("%s_step", prefix.c_str()), Form("%s_step", prefix.c_str()), 101., 95., 115.);
+  RooRealVar *sigma2 = new RooRealVar(Form("%s_sigma2", prefix.c_str()), Form("%s_sigma2", prefix.c_str()), 1., 0.1, 10.);
+  RooRealVar *gauc = new RooRealVar(Form("%s_gauc", prefix.c_str()), Form("%s_gauc", prefix.c_str()), 0.79677, 0., 10.);
+  RooRealVar *step = new RooRealVar(Form("%s_step", prefix.c_str()), Form("%s_step", prefix.c_str()), 105., 95., 115.);
   RooArgList formulaArgs;
   string formula = "TMath::Min(TMath::Max((@0-@1)*153.85, 0.0), 1.0)*(";
 
@@ -257,33 +293,33 @@ RooAbsPdf *PdfModelBuilder::getLaurentStepxGau(string prefix, int order, bool do
   // Fixed the order to be added
   // ***************************************
 
-  int nlower = int(ceil(order / 2.));
-  int nhigher = order - nlower;
+  // int nlower = int(ceil(order / 2.));
+  // int nhigher = order - nlower;
 
-  int mid = -7;
-  int midPower = mid;
+  // int mid = -7;
+  // int midPower = mid;
 
-  RooRealVar *cp0 = new RooRealVar(Form("%s_cp0", prefix.c_str()), Form("%s_cp0_l%d", prefix.c_str(), order), 0.01, 0., 0.5);
-  formulaArgs.add(*cp0);
-  formula += Form("@%d*@0^(%d)*(%d)/(%d^(%d)-@1^(%d))+", formulaArgs.getSize() - 1, midPower, midPower+1, xmax, midPower+1, midPower+1);
+  // RooRealVar *cp0 = new RooRealVar(Form("%s_cp0", prefix.c_str()), Form("%s_cp0_l%d", prefix.c_str(), order), 0.01, 0., 0.5);
+  // formulaArgs.add(*cp0);
+  // formula += Form("@%d*@0^(%d)*(%d)/(%d^(%d)-@1^(%d))+", formulaArgs.getSize() - 1, midPower, midPower+1, xmax, midPower+1, midPower+1);
 
-  for (int i = 1; i <= nlower; i++) {
-    RooRealVar *cp = new RooRealVar(Form("%s_cp%d", prefix.c_str(), i), Form("%s_cp%d", prefix.c_str(), i), 0.001, 0., 1.);
-    formulaArgs.add(*cp);
-    formula += Form("@%d*@0^(%d)*(%d)/(%d^(%d)-@1^(%d))", formulaArgs.getSize() - 1, midPower - i, midPower - i + 1, xmax, midPower - i + 1, midPower - i + 1);
-    if (i < nlower) {
-      formula += "+";
-    }
-  }
+  // for (int i = 1; i <= nlower; i++) {
+  //   RooRealVar *cp = new RooRealVar(Form("%s_cp%d", prefix.c_str(), i), Form("%s_cp%d", prefix.c_str(), i), 0.001, 0., 1.);
+  //   formulaArgs.add(*cp);
+  //   formula += Form("@%d*@0^(%d)*(%d)/(%d^(%d)-@1^(%d))", formulaArgs.getSize() - 1, midPower - i, midPower - i + 1, xmax, midPower - i + 1, midPower - i + 1);
+  //   if (i < nlower) {
+  //     formula += "+";
+  //   }
+  // }
 
-  for (int i = 1; i <= nhigher; i++) {
-    RooRealVar *cp = new RooRealVar(Form("%s_cp%d", prefix.c_str(), i + nlower), Form("%s_cp%d", prefix.c_str(), i + nlower), 0.01, 0., 0.5);
-    formulaArgs.add(*cp);
-    formula += Form("+@%d*@0^(%d)*(%d)/(%d^(%d)-@1^(%d))", formulaArgs.getSize() - 1, midPower + i, midPower + i + 1, xmax, midPower + i + 1, midPower + i + 1);
-    if (i < nhigher) {
-      formula += "+";
-    }
-  }
+  // for (int i = 1; i <= nhigher; i++) {
+  //   RooRealVar *cp = new RooRealVar(Form("%s_cp%d", prefix.c_str(), i + nlower), Form("%s_cp%d", prefix.c_str(), i + nlower), 0.01, 0., 0.5);
+  //   formulaArgs.add(*cp);
+  //   formula += Form("+@%d*@0^(%d)*(%d)/(%d^(%d)-@1^(%d))", formulaArgs.getSize() - 1, midPower + i, midPower + i + 1, xmax, midPower + i + 1, midPower + i + 1);
+  //   if (i < nhigher) {
+  //     formula += "+";
+  //   }
+  // }
 
   // // *************************************
   // // New implementation(NO fixed order)
@@ -302,25 +338,50 @@ RooAbsPdf *PdfModelBuilder::getLaurentStepxGau(string prefix, int order, bool do
   //   }
   // }
 
+  for (int i = 0; i < order; i++){
+    RooRealVar *cp = new RooRealVar(Form("%s_cp%d", prefix.c_str(), i), Form("%s_cp%d", prefix.c_str(), i), 0.5-0.1*i, 0, 1.0);
+    RooRealVar *p = new RooRealVar(Form("%s_p%d", prefix.c_str(), i), Form("%s_p%d", prefix.c_str(), i), -4-i);
+    formulaArgs.add(*p);
+    formulaArgs.add(*cp);
+    formula += Form("@%d*@0^@%d*(1+@%d)/(%d^(1+@%d)-@1^(1+@%d))", formulaArgs.getSize() - 1, formulaArgs.getSize() - 2, formulaArgs.getSize() - 2, xmax, formulaArgs.getSize() - 2, formulaArgs.getSize() - 2);
+    if (i + 1 < order) {
+      formula += "+";
+    }
+  }
+
+
   formula += ")";
   cout << "FORM -- " << formula << endl;
   RooGenericPdf *stepPdf = new RooGenericPdf(Form("%s_step_lau%d", prefix.c_str(), order), Form("%s_step_lau%d", prefix.c_str(), order), formula.c_str(), formulaArgs);
   RooGaussModel *gau = new RooGaussModel(Form("%s_gau_lau%d", prefix.c_str(), order), Form("%s_gau_lau%d", prefix.c_str(), order), *obs_var, *mean, *sigma);
-  RooFFTConvPdf *gauxlau = new RooFFTConvPdf(Form("%s_gauxlau%d", prefix.c_str(), order), Form("%s_gauxlau%d", prefix.c_str(), order), *obs_var, *stepPdf, *gau);
+  RooGaussModel *gau2 = new RooGaussModel(Form("%s_gau2_lau%d", prefix.c_str(), order), Form("%s_gau2_lau%d", prefix.c_str(), order), *obs_var, *mean, *sigma2);
+  RooAddPdf *addgau = new RooAddPdf(Form("%s_addgau_lau%d", prefix.c_str(), order), Form("%s_addgau_lau%d", prefix.c_str(), order), *gau2, *gau, *gauc);
+  string formula_SB = "((@0 < 120)? 1:((@0 > 130)? 1:0))";
+  RooGenericPdf *blindPdf = new RooGenericPdf(Form("%s_blind", prefix.c_str()), Form("%s_blind", prefix.c_str()), formula_SB.c_str(), RooArgList(*obs_var));
   
-  if (doBlind) {
-    string formula_SB = "((@0 < 120)? 1:((@0 > 130)? 1:0))";
-    RooGenericPdf *blindPdf = new RooGenericPdf(Form("%s_blind", prefix.c_str()), Form("%s_blind", prefix.c_str()), formula_SB.c_str(), RooArgList(*obs_var));
-    
-    RooProdPdf* gauxlau_SB = new RooProdPdf(
-        Form("%s_SB", prefix.c_str()),
-        "Blinded PDF (exclude 120-130)",
-        RooArgList(*gauxlau, *blindPdf)
-    );
-    return gauxlau_SB;
+  if (di_gauss){
+    RooFFTConvPdf *digauxlau = new RooFFTConvPdf(Form("%s_digauxlau%d", prefix.c_str(), order), Form("%s_digauxlau%d", prefix.c_str(), order), *obs_var, *stepPdf, *addgau);
+    if (doBlind) {      
+      RooProdPdf* digauxlau_SB = new RooProdPdf(
+          Form("%s_SB", prefix.c_str()),
+          "Blinded PDF (exclude 120-130)",
+          RooArgList(*digauxlau, *blindPdf)
+      );
+      return digauxlau_SB;
+    }
+    return digauxlau;
+  } else {
+    RooFFTConvPdf *gauxlau = new RooFFTConvPdf(Form("%s_gauxlau%d", prefix.c_str(), order), Form("%s_gauxlau%d", prefix.c_str(), order), *obs_var, *stepPdf, *gau);
+    if (doBlind) {
+      RooProdPdf* gauxlau_SB = new RooProdPdf(
+          Form("%s_SB", prefix.c_str()),
+          "Blinded PDF (exclude 120-130)",
+          RooArgList(*gauxlau, *blindPdf)
+      );
+      return gauxlau_SB;
+    }
+    return gauxlau;
   }
-  
-  return gauxlau;
 }
 
 RooAbsPdf *PdfModelBuilder::getLaurentStepxGau(string prefix, int order, vector<int> ps){

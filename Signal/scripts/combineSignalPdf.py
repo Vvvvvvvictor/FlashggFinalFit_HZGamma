@@ -11,6 +11,7 @@ def get_options():
     parser.add_option("--cat", dest='cat', default='RECO_0J_PTH_0_10_Tag0', help="RECO category for which to combine PDFs")
     parser.add_option("--inputExt", dest='inputExt', default='packaged', help="Folder extension of the input signal model")
     parser.add_option("--outputExt", dest='outputExt', default='combinedPDFs', help="Output folder extension")
+    parser.add_option("--outputPath", dest='outputPath', default='.', help="Output path")
     return parser.parse_args()
 (opt,args) = get_options()
 
@@ -34,7 +35,7 @@ combinedWS.imp(MH)
 all_pdfs = []
 
 # Find all input files
-input_files = glob.glob("./outdir_%s/CMS-HGG_sigfit_%s_%s.root" % (opt.inputExt, opt.inputExt, opt.cat))
+input_files = glob.glob("%s/outdir_%s/CMS-HGG_sigfit_%s_%s.root" % (opt.outputPath,opt.inputExt, opt.inputExt, opt.cat))
 if not input_files:
     print "Warning: No input files found for category %s" % (opt.cat)
     sys.exit(1)
@@ -82,11 +83,11 @@ max_mass = 180.0
 step_size = 1.0
 
 # Ensure output directory exists
-if not os.path.isdir("outdir_%s" % opt.outputExt):
-    os.system("mkdir -p outdir_%s" % opt.outputExt)
+if not os.path.isdir("%s/outdir_%s" % (opt.outputPath,opt.outputExt)):
+    os.system("mkdir -p %s/outdir_%s" % (opt.outputPath,opt.outputExt))
 
 # Prepare output file for individual PDFs
-indiv_values_file = "./outdir_%s/individual_pdf_values_%s.txt" % (opt.outputExt, opt.cat)
+indiv_values_file = "%s/outdir_%s/individual_pdf_values_%s.txt" % (opt.outputPath,opt.outputExt, opt.cat)
 with open(indiv_values_file, "w") as fout:
     fout.write("# Mass point (GeV)")
     for i, pdf in enumerate(all_pdfs):
@@ -173,8 +174,8 @@ else:
     sys.exit(1)
 
 # Ensure output directory exists
-if not os.path.isdir("outdir_%s" % opt.outputExt):
-    os.system("mkdir -p outdir_%s" % opt.outputExt)
+if not os.path.isdir("%s/outdir_%s" % (opt.outputPath,opt.outputExt)):
+    os.system("mkdir -p %s/outdir_%s" % (opt.outputPath,opt.outputExt))
 
 # Create a simple validation plot
 print " --> Creating validation plot"
@@ -209,12 +210,12 @@ text.AddText("Equal weights")
 text.Draw("same")
 
 # Save plot
-plot_filename = "./outdir_%s/combined_signal_plot_%s.png" % (opt.outputExt, opt.cat)
+plot_filename = "%s/outdir_%s/combined_signal_plot_%s.png" % (opt.outputPath, opt.outputExt, opt.cat)
 c1.SaveAs(plot_filename)
 print "Validation plot saved to: %s" % plot_filename
 
 # Save workspace to output file
-output_filename = "./outdir_%s/CMS-HGG_combinedPDFs_%s.root" % (opt.outputExt, opt.cat)
+output_filename = "%s/outdir_%s/CMS-HGG_combinedPDFs_%s.root" % (opt.outputPath, opt.outputExt, opt.cat)
 f = ROOT.TFile(output_filename, "RECREATE")
 combinedWS.Write()
 f.Close()
@@ -234,7 +235,7 @@ max_mass = 180.0
 step_size = 1.0
 
 # Prepare output file
-output_values_file = "./outdir_%s/pdf_values_%s.txt" % (opt.outputExt, opt.cat)
+output_values_file = "%s/outdir_%s/pdf_values_%s.txt" % (opt.outputPath, opt.outputExt, opt.cat)
 with open(output_values_file, "w") as fout:
     fout.write("# Mass point (GeV) \t PDF value\n")
     

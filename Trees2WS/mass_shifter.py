@@ -9,7 +9,7 @@ from commonObjects import *
 parser = OptionParser()
 parser.add_option("--inputWSFile", dest="inputWSFile", default="/vols/cms/es811/FinalFits/ws_ReweighAndNewggHweights/output_GluGluHToGG_M125_13TeV_amcatnloFXFX_pythia8_GG2H.root", help="Input file")
 parser.add_option("--inputMass", dest="inputMass", default=125, type='int', help="Input mass")
-parser.add_option("--xvar", dest="xvar", default="CMS_hgg_mass:100:180", help="Input mass variable (name:xmin:xmax)")
+parser.add_option("--xvar", dest="xvar", default="CMS_hgg_mass:95:180", help="Input mass variable (name:xmin:xmax)")
 parser.add_option("--targetMass", dest="targetMass", default=130, type='int', help="Target mass")
 parser.add_option("--verbose", dest="verbose", default=0, type='int', help="Verbose output")
 (opt,args) = parser.parse_args()
@@ -39,7 +39,7 @@ wsout.imp = getattr(wsout,"import")
 allVars = {}
 for _var in rooiter(ws.allVars()): allVars[_var.GetName()] = _var
 for _varName, _var in allVars.iteritems():  
-  wsout.imp(_var, ROOT.RooFit.RecycleConflictNodes(), ROOT.RooFit.Silence() )
+  wsout.imp(_var, ROOT.RooFit.Silence() )
 
 # Extract datasets from original workspace
 allData = ws.allData()
@@ -108,7 +108,7 @@ for d_orig in allData:
       else: shifted_datasets[n_shift].add(p,weight.getVal())
 
 # Import all shifted datasets to output ws
-for d_shift in shifted_datasets.itervalues(): wsout.imp( d_shift, ROOT.RooFit.RecycleConflictNodes() )
+for d_shift in shifted_datasets.itervalues(): wsout.imp( d_shift )
 
 # Configure output file and write output ws
 fout_name = re.sub("M%s"%str(opt.inputMass),"M%s"%str(opt.targetMass), opt.inputWSFile)

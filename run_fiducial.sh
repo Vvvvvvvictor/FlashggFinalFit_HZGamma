@@ -33,10 +33,17 @@ cmsenv
 echo $(pwd)
 source $(pwd)/setup.sh
 mainPath=$(pwd)
-BackgroundWSPath="${mainPath}/Inputdata/outputs_rzou_run3_finalfit/Background_workspace"
-BackgroundNtuplePath="${mainPath}/Inputdata/outputs_rzou_run3_finalfit/fitting_bkg"
-SignalNtuplePath="${mainPath}/Inputdata/outputs_rzou_run3_finalfit/fitting_signal"
-SignalWSPath="${mainPath}/Inputdata/outputs_rzou_run3_finalfit/Signal_workspace"
+inputpath="input_final"
+outputpath="output_final"
+
+BackgroundWSPath="${mainPath}/Inputdata/${inputpath}/background"
+BackgroundNtuplePath="${mainPath}/Inputdata/${inputpath}/fitting_bkg"
+SignalNtuplePath="${mainPath}/Inputdata/${inputpath}/fitting_signal"
+SignalWSPath="${mainPath}/Inputdata/${inputpath}/signal"
+# BackgroundWSPath="${mainPath}/Inputdata/outputs_rzou_run3_finalfit/Background_workspace"
+# BackgroundNtuplePath="${mainPath}/Inputdata/outputs_rzou_run3_finalfit/fitting_bkg"
+# SignalNtuplePath="${mainPath}/Inputdata/outputs_rzou_run3_finalfit/fitting_signal"
+# SignalWSPath="${mainPath}/Inputdata/outputs_rzou_run3_finalfit/Signal_workspace"
 
 # SignalProcs=("ggH" "VBF" "WH" "ZH" "ttH") # "ggH" "VBF" "WplusH" "WminusH" "ZH" "ttH"
 SignalProcs=("ggH" "VBF") # "ggH" "VBF"
@@ -47,8 +54,8 @@ years=("2016preVFP" "2016postVFP" "2017" "2018" "2022preEE" "2022postEE" "2023pr
 ############################################
 # Tree2WS
 ############################################
-# cd ${mainPath}/Trees2WS
-# # make background ws
+cd ${mainPath}/Trees2WS
+# make background ws
 # mkdir -p ${BackgroundWSPath}
 # python trees2ws_data.py --inputConfig config_Run2.py --inputTreeFile ${BackgroundNtuplePath}/Data/output_Data_all.root --outputWSDir ${BackgroundWSPath}
 
@@ -73,8 +80,8 @@ years=("2016preVFP" "2016postVFP" "2017" "2018" "2022preEE" "2022postEE" "2023pr
 #########################################
 # Signal
 #########################################
-# cd ${mainPath}/Signal
-# # fTest
+cd ${mainPath}/Signal
+# fTest # no need to do when using dcb model
 # for year in "${years[@]}"; do
 #     python RunSignalScripts.py --inputConfig config_${year}_fiducial.py --mode fTest --modeOpts "--doPlots"
 # done
@@ -82,32 +89,61 @@ years=("2016preVFP" "2016postVFP" "2017" "2018" "2022preEE" "2022postEE" "2023pr
 # for year in "${years[@]}"; do
 #     python RunSignalScripts.py --inputConfig config_${year}_fiducial.py --mode calcPhotonSyst
 # done
+
 # signalfit
-# for year in "${years[@]}"; do
-#     # sed -i "s/massPoints':'120,125,130'/massPoints':'125'/g" config_${year}_fiducial.py
-#     sed -i "s/massPoints':'125'/massPoints':'120,125,130'/g" config_${year}_fiducial.py
-#     python RunSignalScripts.py --inputConfig config_${year}_fiducial.py --mode signalFit --groupSignalFitJobsByCat --modeOpts "--doPlots --beamspotWidthData 3.5 --beamspotWidthMC 3.7 --useDCB --skipSystematics"
-# done
+for year in "${years[@]}"; do
+    echo "Running signal fitting for year $year"
+    # sed -i "s#input_jiehan#input_final#g" config_${year}_fiducial.py
+    python RunSignalScripts.py --inputConfig config_${year}_fiducial.py --mode signalFit --groupSignalFitJobsByCat --outputPath ${outputpath} --modeOpts "--doPlots --beamspotWidthData 3.5 --beamspotWidthMC 3.7 --useDCB --skipSystematics"
+done
 
 # # packaged
-# python RunPackager.py --cats ggH0,ggH1,ggH2,ggH3 --exts fiducial_2016preVFP,fiducial_2016postVFP,fiducial_2017,fiducial_2018,fiducial_2022preEE,fiducial_2022postEE,fiducial_2023preBPix,fiducial_2023postBPix --massPoints 125 --mergeYears --batch local --outputExt packaged
-# #ggH0,ggH1,ggH2,ggH3,VBF0,VBF1,VBF2,VBF3,VHlep,ZHinv,ttHl,ttHh
+# echo "Packaging signal models"
+python RunPackager.py --cats ggH0,ggH1,ggH2,ggH3,VBF0,VBF1,VBF2,VBF3 --exts fiducial_2016preVFP,fiducial_2016postVFP,fiducial_2017,fiducial_2018,fiducial_2022preEE,fiducial_2022postEE,fiducial_2023preBPix,fiducial_2023postBPix --mergeYears --batch local --outputExt packaged --outputPath ${outputpath}
+# ggH0,ggH1,ggH2,ggH3,VBF0,VBF1,VBF2,VBF3,VHlep,ZHinv,ttHl,ttHh
+# Incl0,Incl1,Incl2,Incl3,Incl4,Incl5,Incl6,Incl7
 
 # # signal model plotting
-# python RunPlotter.py --procs all --cats all --years 2016preVFP,2016postVFP,2017,2018,2022preEE,2022postEE,2023preBPix,2023postBPix --ext packaged
+echo "Plotting signal models"
+python RunPlotter.py --procs all --cats all --years 2016preVFP,2016postVFP,2017,2018,2022preEE,2022postEE,2023preBPix,2023postBPix --ext packaged --outputPath ${outputpath}
+
+for proc in ggH VBF; do
+    echo "Plotting signal models for $proc production mode"
+    python RunPlotter.py --procs $proc --cats all --years 2016preVFP,2016postVFP,2017,2018,2022preEE,2022postEE,2023preBPix,2023postBPix --ext packaged --outputPath ${outputpath}
+done
+
+for cat in ggH0 ggH1 ggH2 ggH3 VBF0 VBF1 VBF2 VBF3; do
+    echo "Plotting signal models for $cat category"
+    python RunPlotter.py --procs all --cats $cat --years 2016preVFP,2016postVFP,2017,2018,2022preEE,2022postEE,2023preBPix,2023postBPix --ext packaged --outputPath ${outputpath}
+done
+
+for flav in ele mu; do
+    echo "Plotting signal models for $flav lepton flavor"
+    python RunPlotter.py --procs all --cats all --flavs $flav --years 2016preVFP,2016postVFP,2017,2018,2022preEE,2022postEE,2023preBPix,2023postBPix --ext packaged --outputPath ${outputpath}
+done
+
 # python RunPlotter.py --procs all --cats ggH0,ggH1,ggH2,ggH3 --years 2016preVFP,2016postVFP,2017,2018,2022preEE,2022postEE,2023preBPix,2023postBPix --ext packaged
 # python RunPlotter.py --procs all --cats all --years 2016preVFP --ext packaged
 
+# ggH0 ggH1 ggH2 ggH3 VBF0 VBF1 VBF2 VBF3 Incl0 Incl1 Incl2 Incl3 Incl4 Incl5 Incl6 Incl7
 # for cat in ggH0 ggH1 ggH2 ggH3; do python scripts/combineSignalPdf.py --cat $cat; done
+for cat in ggH0 ggH1 ggH2 ggH3 VBF0 VBF1 VBF2 VBF3; do 
+    echo "generate signal combine pdf in $cat"
+    python scripts/combineSignalPdf.py --cat $cat --outputPath ${outputpath}; 
+done
 
 ###########################################
 # Background
 ###########################################
 cd ${mainPath}/Background
 # make clean; make -j 16;
-# rm -rf outdir_fiducialAnalysis/* dat/*
-# rm -rf params/*
-python RunBackgroundScripts.py --inputConfig config_fiducial_run2.py --mode fTestParallel #--jobOpts “--blindFit”
+# rm -rf outdir_rzou_run3/* dat/*
+# rm -rf outdir_jiehan/* dat/*
+# rm -rf params_rzou_run3/*
+# rm -rf params_jiehan/*
+# python RunBackgroundScripts.py --inputConfig config_fiducial_run2.py --mode fTestParallel #--jobOpts “--blindFit”
+# mv params/ params_rzou_run3/
+# mv params/ params_jiehan/
 
 ## Sync
 # make workspace with documentation
@@ -120,13 +156,14 @@ python RunBackgroundScripts.py --inputConfig config_fiducial_run2.py --mode fTes
 ###########################################
 # Datacard
 ###########################################
-# cd ${mainPath}/Datacard
-# for cat in "VBF0" "VBF1" "VBF2" "VBF3"; do
+cd ${mainPath}/Datacard
+# for cat in "ggH0" "ggH1" "ggH2" "ggH3" "VBF0" "VBF1" "VBF2" "VBF3"; do # "ggH0" "ggH1" "ggH2" "ggH3" "VBF0" "VBF1" "VBF2" "VBF3"
 #     inputstring=$(IFS=,; for year in "${years[@]}"; do echo -n "${year}=${SignalWSPath}_${year}/,"; done | sed 's/,$//')
 #     echo $inputstring
 #     python RunYields.py --inputWSDirMap $inputstring --cats $cat --procs auto --batch local --ext $cat --mergeYears --skipZeroes # --doSystematics
 #     python makeDatacard.py --years $(IFS=,; echo "${years[*]}") --ext $cat --prune --pruneThreshold 0.001 --mergeYears --output Datacard_$cat #--doSystematics 
 # done
+
 # inputstring=$(IFS=,; for year in "${years[@]}"; do echo -n "${year}=${SignalWSPath}_${year}/,"; done | sed 's/,$//')
 # python RunYields.py --inputWSDirMap $inputstring --cats auto --procs auto --batch local --ext fiducial --mergeYears --skipZeroes # --doSystematics
 # python makeDatacard.py --years $(IFS=,; echo "${years[*]}") --ext fiducial --prune --pruneThreshold 0.001 --mergeYears --output Datacard_fiducial #--doSystematics
@@ -141,26 +178,28 @@ python RunBackgroundScripts.py --inputConfig config_fiducial_run2.py --mode fTes
 ###########################################
 # Combine
 ###########################################
-# cd ${mainPath}/Combine
+echo Combine
+cd ${mainPath}/Combine
 # cp ../Datacard/Datacard*.txt .
 # rm -rf Models; mkdir Models
 # mkdir Models/signal
 # mkdir Models/background
-# cp -r ../Signal/outdir_packaged/CMS-HGG_sigfit_packaged_* Models/signal/
-# cp -r ../Background/outdir_fiducialAnalysis/CMS-HGG_multipdf_* Models/background/
+# cp -r ../Signal/${outputpath}/outdir_packaged/CMS-HGG_sigfit_packaged_* Models/signal/
+# cp -r ../Background/outdir_final/CMS-HGG_multipdf_* Models/background/
 
-# for ext in "_fiducial" "_VBF0" "_VBF1"  "_VBF2" "_VBF3"; do #"_fiducial" "_VBF0" "_VBF1"  "_VBF2" "_VBF3"; do
-#     python RunText2Workspace.py --ext $ext --mode mu_fiducial --batch local
-#     combine Datacard${ext}_mu_fiducial.root -M Significance -t -1 --expectSignal=1 -m 125.0 -n $ext
+# for ext in "_ggH0" "_ggH1" "_ggH2" "_ggH3" "_VBF0" "_VBF1"  "_VBF2" "_VBF3"; do # "_fiducial" "_ggH0" "_ggH1" "_ggH2" "_ggH3" "_VBF0" "_VBF1"  "_VBF2" "_VBF3"; do
+#     # python RunText2Workspace.py --ext $ext --mode mu_fiducial --batch local
+#     # combine Datacard${ext}_mu_fiducial.root -M Significance -t -1 --expectSignal=1 -m 125.0 -n $ext --setParameters MH=125,pdfindex_VBF1_13TeV=2,pdfindex_VBF2_13TeV=1 --verbose 9 >> log${ext}
+#     combineTool.py -d Datacard${ext}_mu_fiducial.root -n ${ext} -M MultiDimFit --algo grid --points 50 --noMCbonly 1  --cminDefaultMinimizerStrategy 0 --cminApproxPreFitTolerance=100  --cminFallbackAlgo Minuit2,Migrad,0:0.1 --cminDefaultMinimizerTolerance 0.1 --X-rtd MINIMIZER_MaxCalls=9999999  --X-rtd MINIMIZER_analytic --X-rtd FAST_VERTICAL_MORPH  --X-rtd MINIMIZER_freezeDisassociatedParams  --X-rtd OPTIMIZE_BOUNDS=0  -v 3  --setParameterRanges r=-1,3 -m 125  --floatOtherPOIs 1 --X-rtd NO_INITIAL_SNAP  --X-rtd MINIMIZER_multiMin_hideConstants --X-rtd MINIMIZER_multiMin_maskConstraints --X-rtd MINIMIZER_multiMin_maskChannels=2  --saveWorkspace --alignEdges 1 --toysFrequentist -t -1 --expectSignal=1 >> log_scan${ext}
 # done
 
 # # Bias Study
 # cd Checks/
 # # Only to make directories
-# for cat in "VBF0" "VBF1" "VBF2" "VBF3"; do # "VBF0" "VBF1" "VBF2" "VBF3"
-#     # python RunBiasStudy.py -j $cat -d ../Datacard_${cat}_mu_fiducial.root -t -n 1000 --dryRun
-#     # python RunBiasStudy.py -j $cat -d ../Datacard_${cat}_mu_fiducial.root -f -n 1000 -c "--cminDefaultMinimizerStrategy 0 --X-rtd MINIMIZER_freezeDisassociatedParams --X-rtd MINIMIZER_multiMin_hideConstants --X-rtd MINIMIZER_multiMin_maskConstraints   --rMin -100 --rMax 100  --freezeParameters MH" --dryRun
-#     # python RunBiasStudy.py -j $cat -d ../Datacard_${cat}_mu_fiducial.root -f -n 100 -c "--alignEdges 1 --setParameterRanges CMS_hgg_mass=110,130 --cminDefaultMinimizerStrategy 0 --X-rtd MINIMIZER_freezeDisassociatedParams --X-rtd MINIMIZER_multiMin_hideConstants --X-rtd MINIMIZER_multiMin_maskConstraints --X-rtd MINIMIZER_multiMin_maskChannels=2"
+# for cat in "Incl0"; do # "VBF0" "VBF1" "VBF2" "VBF3"
+#     python RunBiasStudy.py -j $cat -d ../Datacard_${cat}_mu_fiducial.root -t -n 1000 --dryRun
+#     python RunBiasStudy.py -j $cat -d ../Datacard_${cat}_mu_fiducial.root -f -n 1000 -c "--cminDefaultMinimizerStrategy 0 --X-rtd MINIMIZER_freezeDisassociatedParams --X-rtd MINIMIZER_multiMin_hideConstants --X-rtd MINIMIZER_multiMin_maskConstraints   --rMin -100 --rMax 100  --freezeParameters MH" --dryRun
+#     python RunBiasStudy.py -j $cat -d ../Datacard_${cat}_mu_fiducial.root -f -n 100 -c "--alignEdges 1 --setParameterRanges CMS_hgg_mass=110,130 --cminDefaultMinimizerStrategy 0 --X-rtd MINIMIZER_freezeDisassociatedParams --X-rtd MINIMIZER_multiMin_hideConstants --X-rtd MINIMIZER_multiMin_maskConstraints --X-rtd MINIMIZER_multiMin_maskChannels=2"
 #     python RunBiasStudy.py -j $cat -d ../Datacard_${cat}_mu_fiducial.root -p --gaussianFit
 # done
 

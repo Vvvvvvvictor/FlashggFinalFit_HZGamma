@@ -14,6 +14,7 @@ def get_options():
   parser = OptionParser()
   # Take inputs from config file
   parser.add_option('--inputConfig', dest='inputConfig', default='', help="Name of input config file (if specified will ignore other options)")
+  parser.add_option('--outputPath', dest='outputPath', default='.', help="output directory")
   parser.add_option('--mode', dest='mode', default='', help="Which script to run. Options: ['fTest','getDiagProc','getEffAcc','calcPhotonSyst','signalFit','packageOnly','sigPlotsOnly']")
   parser.add_option('--modeOpts', dest='modeOpts', default='', help="Additional options to add to command line when running scripts (specify all within quotes e.g. \"--XYZ ABC\")")
   parser.add_option('--jobOpts', dest='jobOpts', default='', help="Additional options to add to job submission. For Condor separate individual options with a colon (specify all within quotes e.g. \"option_xyz = abc+option_123 = 456\")")
@@ -54,6 +55,7 @@ if opt.inputConfig != '':
     options['batch']        = _cfg['batch']
     options['queue']        = _cfg['queue']
     # Options from command line
+    options['outputPath']                    = opt.outputPath
     options['mode']                    = opt.mode
     options['modeOpts']                = opt.modeOpts
     options['jobOpts']                 = opt.jobOpts
@@ -140,7 +142,7 @@ print " ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Make directory to store job scripts and output
-if not os.path.isdir("%s/outdir_%s"%(swd__,options['ext'])): os.system("mkdir %s/outdir_%s"%(swd__,options['ext']))
+if not os.path.isdir("%s/%s/outdir_%s"%(swd__,options['outputPath'],options['ext'])): os.system("mkdir -p %s/%s/outdir_%s"%(swd__,options['outputPath'],options['ext']))
 
 # Write submission files: style depends on batch system
 writeSubFiles(options)
