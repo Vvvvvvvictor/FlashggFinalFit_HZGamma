@@ -95,7 +95,7 @@ for cat,f in inputFiles.iteritems():
     allNorms = w.allFunctions().selectByName("*%s*normThisLumi"%year)
     if opt.procs == 'all':
       for norm in rooiter(allNorms):
-        proc = norm.GetName().split("_%s"%year)[0].split("dcb_")[1]
+        proc = norm.GetName().split("_")[1]
         if proc not in procs_list:
           procs_list.append(proc)
     else:
@@ -123,8 +123,9 @@ for cat,f in inputFiles.iteritems():
   # Iterate over norms: extract total category norm
   catNorm = 0
   for k, norm in norms.iteritems():
-    proc = k.split("_20")[0].split("dcb_")[1]
-    year, flav = k.split("%s_"%proc)[-1].split("_")
+    proc = k.split("_")[1]
+    year = k.split("_")[2]
+    flav = k.split("_")[3]
     _id = "dcb_%s_%s_%s_%s_%s"%(proc, year, cat, flav, sqrts__)
     w.var("IntLumi").setVal(lumiScaleFactor*lumiMap[year])
     catNorm += norm.getVal()
@@ -134,8 +135,9 @@ for cat,f in inputFiles.iteritems():
 
   # Iterate over norms and extract data sets + pdfs
   for k, norm in norms.iteritems():
-    proc = k.split("_20")[0].split("dcb_")[1]
-    year, flav = k.split("%s_"%proc)[-1].split("_")
+    proc = k.split("_")[1]
+    year = k.split("_")[2]
+    flav = k.split("_")[3]
     _id = "dcb_%s_%s_%s_%s_%s"%(proc, year, cat, flav, sqrts__)
     w.var("IntLumi").setVal(lumiScaleFactor*lumiMap[year])
     # print("k = %s, proc = %s, year = %s, flav = %s, _id = %s"%(k, proc, year, flav, _id))

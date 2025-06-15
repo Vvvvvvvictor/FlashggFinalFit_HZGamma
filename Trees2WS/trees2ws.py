@@ -274,7 +274,7 @@ for stxsId in data[stxsVar].unique():
       outputWSDir = opt.outputWSDir
     else:
       outputWSDir = "/".join(opt.inputTreeFile.split("/")[:-1])+"/ws_%s"%dataToProc(opt.productionMode)
-    if not os.path.exists(outputWSDir): os.system("mkdir %s"%outputWSDir)
+    if not os.path.exists(outputWSDir): os.system("mkdir -p %s"%outputWSDir)
     outputWSFile = outputWSDir+"/"+re.sub(".root","_pythia8_%s.root"%dataToProc(opt.productionMode),opt.inputTreeFile.split("/")[-1])
     print " --> Creating output workspace: (%s)"%outputWSFile
     

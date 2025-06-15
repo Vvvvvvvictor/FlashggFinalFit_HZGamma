@@ -12,7 +12,7 @@ from collections import OrderedDict as od
 
 from commonTools import *
 from commonObjects import *
-from signalTools import *
+from signalTools import reduceDataset, splitRVWV, beamspotReweigh
 from replacementMap import globalReplacementMap
 from XSBRMap import *
 from simultaneousFit import *
@@ -91,7 +91,7 @@ if opt.analysis not in globalXSBRMap:
 else: xsbrMap = globalXSBRMap[opt.analysis]
 
 # Load RooRealVars
-nominalWSFileName = glob.glob("%s/output*M%s*%s.root"%(opt.inputWSDir,MHNominal,opt.proc))[0]
+nominalWSFileName = glob.glob(re.sub("all", "*", "%s/output*M%s*%s.root"%(opt.inputWSDir,MHNominal,opt.proc)))[0]
 f0 = ROOT.TFile(nominalWSFileName,"read")
 inputWS0 = f0.Get(inputWSName__)
 xvar = inputWS0.var(opt.xvar)
@@ -149,29 +149,39 @@ if opt.useDiagonalProcForSyst:
     print " --> Using diagonal proc (%s,%s,%s) for systematics"%(procSyst,opt.cat,opt.flav)
 
 # Define process with which to extract normalisation: nominal
-procNorm, catNorm, flavNorm = opt.proc, opt.cat, opt.flav
+# procNorm, catNorm, flavNorm = opt.proc, opt.cat, opt.flav
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # EXTRACT DATASETS TO FIT (for each mass point)
 nominalDatasets = od()
 # For RV (or if skipping vertex scenario split)
 datasetRVForFit = od()
+print(opt.inputWSDir)
 for mp in opt.massPoints.split(","):
-  print " --> Extracting dataset: %s/output*M%s*%s.root" %(opt.inputWSDir,mp,procRVFit)
-  WSFileName = glob.glob("%s/output*M%s*%s.root"%(opt.inputWSDir,mp,procRVFit))[0]
-  f = ROOT.TFile(WSFileName,"read")
-  inputWS = f.Get(inputWSName__)
-  if procRVFit.split("_")[-1] in ["i"]:
-  # if procRVFit.split("_")[-1] in ["in", "out"]:
-    d = reduceDataset(inputWS.data("%s_%s_%s_%s_%s_%s"%(procToData(procRVFit.split("_")[0]),procToData(procRVFit.split("_")[-1]),mp,flavRVFit,sqrts__,catRVFit)),aset)
-  else:
-    d = reduceDataset(inputWS.data("%s_%s_%s_%s_%s"%(procToData(procRVFit.split("_")[0]),mp,flavRVFit,sqrts__,catRVFit)),aset)
+  d_list = []
+
+  for proc in re.sub("all", "ggH,VBF", opt.proc).split(","):
+    print(re.sub("all", "*", " --> Extracting dataset: %s/output*M%s*%s.root" %(opt.inputWSDir,mp,proc)))
+    WSFileNames = glob.glob(re.sub("all", "*", "%s/output*M%s*%s.root"%(opt.inputWSDir,mp,proc)))
+    print(WSFileNames)
+
+    for flav in re.sub("all", "ele,mu", opt.flav).split(","):
+      for WSFileName in WSFileNames:
+        f = ROOT.TFile(WSFileName,"read")
+        inputWS = f.Get(inputWSName__)
+        reducedSet = ROOT.RooArgSet(inputWS.var(opt.xvar),inputWS.var("dZ"))
+        datasetName = "%s_%s_%s_%s_%s"%(procToData(proc.split("_")[0]),mp,flav,sqrts__,catRVFit)
+        rdataset = reduceDataset(inputWS.data(datasetName),reducedSet)
+        d_list.append(rdataset)
+        # inputWS.Delete()
+        f.Close()
+  d = d_list[0].emptyClone()
+  for ds in d_list: d.append(ds)
+  print("Number of DataSet: %d"%len(d_list))
   nominalDatasets[mp] = d.Clone()
   if opt.skipVertexScenarioSplit: datasetRVForFit[mp] = d
   else: datasetRVForFit[mp] = splitRVWV(d,aset,mode="RV")
-  inputWS.Delete()
-  f.Close()
-
+        
 # Check if nominal yield > threshold (or if +ve sum of weights). If not then use replacement proc x cat
 if( datasetRVForFit[MHNominal].numEntries() < opt.replacementThreshold  )|( datasetRVForFit[MHNominal].sumEntries() < 0. ):
   nominal_numEntries = datasetRVForFit[MHNominal].numEntries()

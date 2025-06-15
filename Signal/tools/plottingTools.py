@@ -442,6 +442,9 @@ def plotSplines(_finalModel,_outdir="./",_nominalMass='125',splinesToPlot=['xs',
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Function for plotting final signal model: neat
 def plotSignalModel(_hists,_opt,_outdir=".",offset=0.02):
+  
+  print("data yield: %f" % _hists['data'].Integral())
+
   colorMap = {'2016preVFP':24,'2016postVFP':38,'2017':30,'2018':46,'2022preEE':42,'2022postEE':43,'2023preBPix':44,'2023postBPix':45}
   canv = ROOT.TCanvas("c","c",650,600)
   canv.SetBottomMargin(0.12)
@@ -475,6 +478,8 @@ def plotSignalModel(_hists,_opt,_outdir=".",offset=0.02):
     leg0.SetTextSize(0.03)
     leg0.AddEntry(_hists['data'],"Simulation","ep")
     leg0.AddEntry(_hists['pdf'],"#splitline{Parametric}{model}","l")
+    # leg0.AddEntry(_hists['data'],"Simulation %f" % _hists['data'].Integral(),"ep")
+    # leg0.AddEntry(_hists['pdf'],"#splitline{Parametric}{model} %f" % _hists['pdf'].Integral(),"l")
     leg0.Draw("Same")
 
     leg1 = ROOT.TLegend(0.17+offset,0.45,0.4+offset,0.61)
@@ -572,9 +577,13 @@ def plotSignalModel(_hists,_opt,_outdir=".",offset=0.02):
   if len(_opt.years.split(","))>1: yearStr, yearExt = "", ""
   else: yearStr, yearExt = _opt.years, "_%s"%_opt.years
 
+  if _opt.flavs == 'all': flavStr, flavExt = "", ""
+  elif len(_opt.flavs.split(","))>1: flavStr, flavExt = "", ""
+  else: flavStr, flavExt = _opt.flavs, "_%s"%_opt.flavs
+
   if _opt.cats == 'all': catStr, catExt = "All categories", "all"
   elif _opt.cats == 'wall': catStr, catExt = "#splitline{All categories}{S/(S+B) weighted}", "wall"
-  elif len(_opt.cats.split(","))>1: procStr, procExt = "Multiple categories", "multipleCats"
+  elif len(_opt.cats.split(","))>1: catStr, catExt = "Multiple categories", "multipleCats"
   else: catStr, catExt = Translate(_opt.cats,translateCats), _opt.cats
  
   lat1.DrawLatex(0.85,0.86,"%s"%catStr)
@@ -590,5 +599,5 @@ def plotSignalModel(_hists,_opt,_outdir=".",offset=0.02):
     with open("%s/effSigma_%s.json"%(_outdir,catExt),"w") as jf: json.dump(es,jf)
 
   # Save canvas
-  canv.SaveAs("%s/smodel_%s%s%s.pdf"%(_outdir,catExt,procExt,yearExt))
-  canv.SaveAs("%s/smodel_%s%s%s.png"%(_outdir,catExt,procExt,yearExt))
+  canv.SaveAs("%s/smodel_%s%s%s%s.pdf"%(_outdir,catExt,procExt,yearExt,flavExt))
+  canv.SaveAs("%s/smodel_%s%s%s%s.png"%(_outdir,catExt,procExt,yearExt,flavExt))
