@@ -3,10 +3,15 @@
 backgroundScriptCfg = {
   
   # Setup
-  'inputWS':'/eos/home-j/jiehan/root/input_finalfit/background/ws/output_Data_all.root', # location of 'output_Data_Run2.root' file
-  'cats':'VBF2', # auto: automatically inferred from input ws
-  'catOffset':2, # add offset to category numbers (useful for categories from different allData.root files)  
-  'ext':'fiducialAnalysis', # extension to add to output directory
+  # 'inputWS':'/eos/user/m/mingtao/workspace/zgamma/CMSSW_10_2_13/src/FlashggFinalFit_HZGamma/Inputdata/outputs_rzou_run3_finalfit/Background_workspace/ws/output_Data_all.root', # location of 'output_Data_Run2.root' file
+  # 'inputWS':'/eos/user/m/mingtao/workspace/zgamma/CMSSW_10_2_13/src/FlashggFinalFit_HZGamma/Inputdata/input_jiehan/background/ws/output_Data_all.root', # location of 'output_Data_Run2.root' file
+  'inputWS':'/eos/user/m/mingtao/workspace/zgamma/CMSSW_10_2_13/src/FlashggFinalFit_HZGamma/Inputdata/input_final/background/ws/output_Data_all.root', # location of 'output_Data_Run2.root' file
+  ## 'ggH0,ggH1,ggH2,ggH3' 'Incl0,Incl1,Incl2,Incl3,Incl4,Incl5,Incl6,Incl7'
+  # 'cats':'Incl0,Incl1,Incl2,Incl3,Incl4,Incl5,Incl6,Incl7', # auto: automatically inferred from input ws
+  'cats':'ggH0', # auto: automatically inferred from input ws
+  'catOffset':0, # add offset to category numbers (useful for categories from different allData.root files)  
+  ## 'jiehan' 'rzou_run3' 'final'
+  'ext':'final', # extension to add to output directory
   'year':'combined', # Use combined when merging all years in category (for plots)
 
   # Job submission options

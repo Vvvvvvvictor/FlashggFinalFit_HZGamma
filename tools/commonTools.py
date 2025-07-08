@@ -17,10 +17,11 @@ def rooiter(x):
     ret = iter.Next()
 
 def extractWSFileNames( _inputWSDir ): 
-  if not os.path.isdir(_inputWSDir):
-    print " --> [ERROR] No such directory (%s)"
+  if (not os.path.isdir(_inputWSDir)) and (not "all" in _inputWSDir):
+    print(" --> [ERROR] No such directory (%s)"%_inputWSDir)
     return False
-  return glob.glob("%s/output_*.root"%_inputWSDir)
+  print(re.sub("all", "*", "Extract WS FileName: %s/output_*.root"%_inputWSDir))
+  return glob.glob(re.sub("all", "*", "%s/output_*.root"%_inputWSDir))
 
 def extractListOfProcs( _listOfWSFileNames ):
   procs = []

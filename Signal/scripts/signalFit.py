@@ -12,7 +12,7 @@ from collections import OrderedDict as od
 
 from commonTools import *
 from commonObjects import *
-from signalTools import *
+from signalTools import reduceDataset, splitRVWV, beamspotReweigh
 from replacementMap import globalReplacementMap
 from XSBRMap import *
 from simultaneousFit import *
@@ -31,6 +31,7 @@ def get_options():
   parser = OptionParser()
   parser.add_option("--xvar", dest='xvar', default='CMS_hgg_mass', help="Observable to fit")
   parser.add_option("--inputWSDir", dest='inputWSDir', default='', help="Input flashgg WS directory")
+  parser.add_option("--outputPath", dest='outputPath', default='.', help="Output path")
   parser.add_option("--ext", dest='ext', default='', help="Extension")
   parser.add_option("--proc", dest='proc', default='', help="Signal process")
   parser.add_option("--cat", dest='cat', default='', help="RECO category")
@@ -58,7 +59,7 @@ def get_options():
   parser.add_option('--beamspotWidthData', dest='beamspotWidthData', default=3.4, type='float', help="Width of beamspot in data [cm]")
   parser.add_option('--beamspotWidthMC', dest='beamspotWidthMC', default=5.14, type='float', help="Width of beamspot in MC [cm]")
   parser.add_option('--MHPolyOrder', dest='MHPolyOrder', default=1, type='int', help="Order of polynomial for MH dependence")
-  parser.add_option('--nBins', dest='nBins', default=80, type='int', help="Number of bins for fit")
+  parser.add_option('--nBins', dest='nBins', default=340, type='int', help="Number of bins for fit")
   # Minimizer options
   parser.add_option('--minimizerMethod', dest='minimizerMethod', default='TNC', help="(Scipy) Minimizer method")
   parser.add_option('--minimizerTolerance', dest='minimizerTolerance', default=1e-8, type='float', help="(Scipy) Minimizer toleranve")
@@ -90,7 +91,7 @@ if opt.analysis not in globalXSBRMap:
 else: xsbrMap = globalXSBRMap[opt.analysis]
 
 # Load RooRealVars
-nominalWSFileName = glob.glob("%s/output*M%s*%s.root"%(opt.inputWSDir,MHNominal,opt.proc))[0]
+nominalWSFileName = glob.glob(re.sub("all", "*", "%s/output*M%s*%s.root"%(opt.inputWSDir,MHNominal,opt.proc)))[0]
 f0 = ROOT.TFile(nominalWSFileName,"read")
 inputWS0 = f0.Get(inputWSName__)
 xvar = inputWS0.var(opt.xvar)
@@ -129,10 +130,10 @@ else:
 
 # Options for using diagonal process from getDiagProc output json
 if opt.useDiagonalProcForShape:
-  if not os.path.exists("%s/outdir_%s/getDiagProc/json/diagonal_process.json"%(swd__,opt.ext)):
+  if not os.path.exists("%s/%s/outdir_%s/getDiagProc/json/diagonal_process.json"%(swd__,opt.outputPath,opt.ext)):
     print " --> [ERROR] Diagonal process json from getDiagProc does not exist. Using nominal proc x cat x flav for shape"
   else:
-    with open("%s/outdir_%s/getDiagProc/json/diagonal_process.json"%(swd__,opt.ext),"r") as jf: dproc = json.load(jf)
+    with open("%s/%s/outdir_%s/getDiagProc/json/diagonal_process.json"%(swd__,opt.outputPath,opt.ext),"r") as jf: dproc = json.load(jf)
     procRVFit = dproc[opt.cat]
     print " --> Using diagonal proc (%s,%s,%s) for shape"%(procRVFit,opt.cat,opt.flav)
     if not opt.skipVertexScenarioSplit: procWVFit = dproc[opt.cat]
@@ -140,37 +141,47 @@ if opt.useDiagonalProcForShape:
 # Process for syst
 procSyst = opt.proc
 if opt.useDiagonalProcForSyst:
-  if not os.path.exists("%s/outdir_%s/getDiagProc/json/diagonal_process.json"%(swd__,opt.ext)):
+  if not os.path.exists("%s/%s/outdir_%s/getDiagProc/json/diagonal_process.json"%(swd__,opt.outputPath,opt.ext)):
     print " --> [ERROR] Diagonal process json from getDiagProc does not exist. Using nominal proc x cat x flav for systematics"
   else:
-    with open("%s/outdir_%s/getDiagProc/json/diagonal_process.json"%(swd__,opt.ext),"r") as jf: dproc = json.load(jf)
+    with open("%s/%s/outdir_%s/getDiagProc/json/diagonal_process.json"%(swd__,opt.outputPath,opt.ext),"r") as jf: dproc = json.load(jf)
     procSyst = dproc[opt.cat]
     print " --> Using diagonal proc (%s,%s,%s) for systematics"%(procSyst,opt.cat,opt.flav)
 
 # Define process with which to extract normalisation: nominal
-procNorm, catNorm, flavNorm = opt.proc, opt.cat, opt.flav
+# procNorm, catNorm, flavNorm = opt.proc, opt.cat, opt.flav
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # EXTRACT DATASETS TO FIT (for each mass point)
 nominalDatasets = od()
 # For RV (or if skipping vertex scenario split)
 datasetRVForFit = od()
+print(opt.inputWSDir)
 for mp in opt.massPoints.split(","):
-  print " --> Extracting dataset: %s/output*M%s*%s.root" %(opt.inputWSDir,mp,procRVFit)
-  WSFileName = glob.glob("%s/output*M%s*%s.root"%(opt.inputWSDir,mp,procRVFit))[0]
-  f = ROOT.TFile(WSFileName,"read")
-  inputWS = f.Get(inputWSName__)
-  if procRVFit.split("_")[-1] in ["i"]:
-  # if procRVFit.split("_")[-1] in ["in", "out"]:
-    d = reduceDataset(inputWS.data("%s_%s_%s_%s_%s_%s"%(procToData(procRVFit.split("_")[0]),procToData(procRVFit.split("_")[-1]),mp,flavRVFit,sqrts__,catRVFit)),aset)
-  else:
-    d = reduceDataset(inputWS.data("%s_%s_%s_%s_%s"%(procToData(procRVFit.split("_")[0]),mp,flavRVFit,sqrts__,catRVFit)),aset)
+  d_list = []
+
+  for proc in re.sub("all", "ggH,VBF", opt.proc).split(","):
+    print(re.sub("all", "*", " --> Extracting dataset: %s/output*M%s*%s.root" %(opt.inputWSDir,mp,proc)))
+    WSFileNames = glob.glob(re.sub("all", "*", "%s/output*M%s*%s.root"%(opt.inputWSDir,mp,proc)))
+    print(WSFileNames)
+
+    for flav in re.sub("all", "ele,mu", opt.flav).split(","):
+      for WSFileName in WSFileNames:
+        f = ROOT.TFile(WSFileName,"read")
+        inputWS = f.Get(inputWSName__)
+        reducedSet = ROOT.RooArgSet(inputWS.var(opt.xvar),inputWS.var("dZ"))
+        datasetName = "%s_%s_%s_%s_%s"%(procToData(proc.split("_")[0]),mp,flav,sqrts__,catRVFit)
+        rdataset = reduceDataset(inputWS.data(datasetName),reducedSet)
+        d_list.append(rdataset)
+        # inputWS.Delete()
+        f.Close()
+  d = d_list[0].emptyClone()
+  for ds in d_list: d.append(ds)
+  print("Number of DataSet: %d"%len(d_list))
   nominalDatasets[mp] = d.Clone()
   if opt.skipVertexScenarioSplit: datasetRVForFit[mp] = d
   else: datasetRVForFit[mp] = splitRVWV(d,aset,mode="RV")
-  inputWS.Delete()
-  f.Close()
-
+        
 # Check if nominal yield > threshold (or if +ve sum of weights). If not then use replacement proc x cat
 if( datasetRVForFit[MHNominal].numEntries() < opt.replacementThreshold  )|( datasetRVForFit[MHNominal].sumEntries() < 0. ):
   nominal_numEntries = datasetRVForFit[MHNominal].numEntries()
@@ -285,14 +296,14 @@ if not opt.skipBeamspotReweigh:
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # If using nGaussian fit then extract nGaussians from fTest json file
 if not opt.useDCB:
-  with open("%s/outdir_%s/fTest/json/nGauss_%s.json"%(swd__,opt.ext,catRVFit)) as jf: ngauss = json.load(jf)
+  with open("%s/%s/outdir_%s/fTest/json/nGauss_%s.json"%(swd__,opt.outputPath,opt.ext,catRVFit)) as jf: ngauss = json.load(jf)
   if( datasetRVForFit[MHNominal].numEntries() < opt.replacementThreshold  )|( datasetRVForFit[MHNominal].sumEntries() < 0. ):
     nRV = int(ngauss["%s_%s_%s"%(rMap['procRVMap'][catRVFit],catRVFit,flavRVFit)]['nRV'])
   else:
     nRV = int(ngauss["%s_%s_%s"%(procRVFit,catRVFit,flavRVFit)]['nRV'])
   if opt.skipVertexScenarioSplit: print " --> Fitting function: convolution of nGaussians (%g)"%nRV
   else: 
-    with open("%s/outdir_%s/fTest/json/nGauss_%s.json"%(swd__,opt.ext,catWVFit)) as jf: ngauss = json.load(jf)
+    with open("%s/%s/outdir_%s/fTest/json/nGauss_%s.json"%(swd__,opt.outputPath,opt.ext,catWVFit)) as jf: ngauss = json.load(jf)
     if( datasetWVForFit[MHNominal].numEntries() < opt.replacementThreshold  )|( datasetWVForFit[MHNominal].sumEntries() < 0. ):
       nWV = int(ngauss["%s_%s_%s"%(rMap['procWVMap'],catWVFit,flavWVFit)]['nRV'])
     else:
@@ -333,10 +344,10 @@ fm = FinalModel(ssfMap,opt.proc,opt.cat,opt.flav,opt.ext,opt.year,sqrts__,nomina
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # SAVE: to output workspace
-foutDir = "%s/outdir_%s/signalFit/output"%(swd__,opt.ext)
-foutName = "%s/outdir_%s/signalFit/output/CMS-HGG_sigfit_%s_%s_%s_%s_%s.root"%(swd__,opt.ext,opt.ext,opt.proc,opt.year,opt.flav,opt.cat)
+foutDir = "%s/%s/outdir_%s/signalFit/output"%(swd__,opt.outputPath,opt.ext)
+foutName = "%s/CMS-HGG_sigfit_%s_%s_%s_%s_%s.root"%(foutDir,opt.ext,opt.proc,opt.year,opt.flav,opt.cat)
 print "\n --> Saving output workspace to file: %s"%foutName
-if not os.path.isdir(foutDir): os.system("mkdir %s"%foutDir)
+if not os.path.isdir(foutDir): os.system("mkdir -p %s"%foutDir)
 fout = ROOT.TFile(foutName,"RECREATE")
 outWS = ROOT.RooWorkspace("%s_%s"%(outputWSName__,sqrts__),"%s_%s"%(outputWSName__,sqrts__))
 fm.save(outWS)
@@ -347,17 +358,17 @@ fout.Close()
 # PLOTTING
 if opt.doPlots:
   print "\n --> Making plots..."
-  if not os.path.isdir("%s/outdir_%s/signalFit/Plots"%(swd__,opt.ext)): os.system("mkdir %s/outdir_%s/signalFit/Plots"%(swd__,opt.ext))
+  if not os.path.isdir("%s/%s/outdir_%s/signalFit/Plots"%(swd__,opt.outputPath,opt.ext)): os.system("mkdir -p %s/%s/outdir_%s/signalFit/Plots"%(swd__,opt.outputPath,opt.ext))
   # FIXME: add flav to plotPdfComponents function
   if opt.skipVertexScenarioSplit:
-    plotPdfComponents(ssfRV,_outdir="%s/outdir_%s/signalFit/Plots"%(swd__,opt.ext),_extension="total_",_proc=procRVFit,_cat=catRVFit,_flav=opt.flav) 
+    plotPdfComponents(ssfRV,_outdir="%s/%s/outdir_%s/signalFit/Plots"%(swd__,opt.outputPath,opt.ext),_extension="total_",_proc=procRVFit,_cat=catRVFit,_flav=opt.flav) 
   if not opt.skipVertexScenarioSplit:
-    plotPdfComponents(ssfRV,_outdir="%s/outdir_%s/signalFit/Plots"%(swd__,opt.ext),_extension="RV_",_proc=procRVFit,_cat=catRVFit,_flav=opt.flav) 
-    plotPdfComponents(ssfWV,_outdir="%s/outdir_%s/signalFit/Plots"%(swd__,opt.ext),_extension="WV_",_proc=procWVFit,_cat=catRVFit,_flav=opt.flav) 
+    plotPdfComponents(ssfRV,_outdir="%s/%s/outdir_%s/signalFit/Plots"%(swd__,opt.outputPath,opt.ext),_extension="RV_",_proc=procRVFit,_cat=catRVFit,_flav=opt.flav) 
+    plotPdfComponents(ssfWV,_outdir="%s/%s/outdir_%s/signalFit/Plots"%(swd__,opt.outputPath,opt.ext),_extension="WV_",_proc=procWVFit,_cat=catRVFit,_flav=opt.flav) 
   # Plot interpolation
   # FIXME: add flav to plotInterpolation and plotSplines functions
   try:
-    plotInterpolation(fm,_outdir="%s/outdir_%s/signalFit/Plots"%(swd__,opt.ext)) 
-    plotSplines(fm,_outdir="%s/outdir_%s/signalFit/Plots"%(swd__,opt.ext),_nominalMass=MHNominal) 
+    plotInterpolation(fm,_outdir="%s/%s/outdir_%s/signalFit/Plots"%(swd__,opt.outputPath,opt.ext)) 
+    plotSplines(fm,_outdir="%s/%s/outdir_%s/signalFit/Plots"%(swd__,opt.outputPath,opt.ext),_nominalMass=MHNominal) 
   except:
     pass

@@ -57,10 +57,10 @@ class PdfModelBuilder {
 
     RooAbsPdf *getDoubleCB();
 
-    RooAbsPdf *getBernsteinStepxGau(string prefix, int order);
-    RooAbsPdf *getExponentialStepxGau(string prefix, int order);
-    RooAbsPdf *getPowerLawStepxGau(string prefix, int order);
-    RooAbsPdf *getLaurentStepxGau(string prefix, int order);
+    RooAbsPdf *getBernsteinStepxGau(string prefix, int order, bool doBlind);
+    RooAbsPdf *getExponentialStepxGau(string prefix, int order, bool doBlind, bool di_gauss, bool const_cp1);
+    RooAbsPdf *getPowerLawStepxGau(string prefix, int order, bool doBlind, bool di_gauss, bool const_cp1);
+    RooAbsPdf *getLaurentStepxGau(string prefix, int order, bool doBlind, bool di_gauss);
     RooAbsPdf *getLaurentStepxGau(string prefix, int order, vector<int> ps);
 
     RooAbsPdf* getBernstein(string prefix, int order);
@@ -73,8 +73,8 @@ class PdfModelBuilder {
     RooAbsPdf* getLaurentSeries(string prefix, int order);
     RooAbsPdf* getKeysPdf(string prefix);
     RooAbsPdf* getPdfFromFile(string &prefix);
-    RooAbsPdf* getExpModGaussian(string prefix);
-    RooAbsPdf* getAsymGenGaussian(string prefix);
+    RooAbsPdf* getExpModGaussian(string prefix, bool doBlind);
+    RooAbsPdf* getAsymGenGaussian(string prefix, bool doBlind);
 
   private:
    

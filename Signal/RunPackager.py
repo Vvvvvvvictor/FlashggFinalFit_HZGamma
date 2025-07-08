@@ -15,6 +15,7 @@ def get_options():
   parser.add_option("--inputWSDir", dest='inputWSDir', default='', help="Input flashgg WS directory: used for auto option")
   parser.add_option('--exts', dest='exts', default='', help="Comma separated lists of exts to merge")
   parser.add_option('--outputExt', dest='outputExt', default='packaged', help="Output extension")
+  parser.add_option('--outputPath', dest='outputPath', default='.', help="Output path")
   parser.add_option("--massPoints", dest='massPoints', default='120,125,130', help="Comma separated list of mass points")
   parser.add_option('--mergeYears', dest='mergeYears', default=False, action="store_true", help="Use if merging categories across years")
   parser.add_option('--year', dest='year', default='2022', help="If not merging then add year tag to file name")
@@ -35,6 +36,7 @@ options = od()
 options['inputWSDir'] = opt.inputWSDir
 options['cats'] = opt.cats
 options['ext'] = opt.outputExt
+options['outputPath'] = opt.outputPath
 options['massPoints'] = opt.massPoints
 options['mode'] = 'packageSignal'
 options['modeOpts'] = '--exts %s'%opt.exts
