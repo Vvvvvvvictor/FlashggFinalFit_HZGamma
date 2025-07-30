@@ -232,10 +232,21 @@ RooAbsPdf *PdfModelBuilder::getExponentialStepxGau(string prefix, int order, boo
     string cpName = Form("%s_cp%d", prefix.c_str(), i + 1);
     RooRealVar *p = new RooRealVar(pName.c_str(), pName.c_str(), -0.05*i, -0.5, 0.0);
     RooRealVar *cp = new RooRealVar(cpName.c_str(), cpName.c_str(), 0.9, 0., 1.);
-    if ((const_cp1) && (i == 0)) cp->setConstant(true);
+    if ((const_cp1) && (i == 0)) {
+      // cp->setVal(0.5);
+      cp->setConstant(true);
+    }
     formulaArgs.add(*p);
     formulaArgs.add(*cp);
-    formula += Form("@%d*TMath::Exp(@%d*@0)*@%d/(%d^(1+@%d)-@1^(1+@%d))", formulaArgs.getSize() - 1, formulaArgs.getSize() - 2, formulaArgs.getSize() - 1, xmax, formulaArgs.getSize() - 2, formulaArgs.getSize() - 2);
+    // formula += Form("@%d*TMath::Exp(@%d*@0)*@%d/(%d^(1+@%d)-@1^(1+@%d))", formulaArgs.getSize() - 1, formulaArgs.getSize() - 2, formulaArgs.getSize() - 1, xmax, formulaArgs.getSize() - 2, formulaArgs.getSize() - 2);
+    formula += Form("@%d*TMath::Exp(@%d*@0)/((TMath::Exp(@%d*%d)-TMath::Exp(@%d*@1))/@%d)", 
+      formulaArgs.getSize() - 1, // cp
+      formulaArgs.getSize() - 2, // p
+      formulaArgs.getSize() - 2,
+      xmax, 
+      formulaArgs.getSize() - 2,
+      formulaArgs.getSize() - 2
+    );
     if (i + 2 < order) {
       formula += "+";
     }
