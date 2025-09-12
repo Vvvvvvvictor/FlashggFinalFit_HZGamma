@@ -198,7 +198,7 @@ void setPdfParams(RooAbsPdf* pdf, const map<string, double>& params) {
   delete pdfParams;
 }
 
-RooAbsPdf* getPdf(PdfModelBuilder &pdfsModel, string type, int order, string *typePrefix, const char* ext="", const string& cat=""){
+RooAbsPdf* getPdf(PdfModelBuilder &pdfsModel, string type, int order, string *typePrefix, const char* ext="", const string& cat="", int midPowVal = -5){ // NEW SIGNATURE with midPowVal
   RooAbsPdf* pdf = nullptr;
   
   // First create the PDF instance
@@ -219,7 +219,7 @@ RooAbsPdf* getPdf(PdfModelBuilder &pdfsModel, string type, int order, string *ty
     *typePrefix = "pow";
   }
   else if (type=="Laurent") {
-    pdf = pdfsModel.getLaurentSeries(Form("eriesd",ext,order),order);
+    pdf = pdfsModel.getLaurentSeries(Form("%s_lau%d",ext,order),order); // Corrected Form argument from "eriesd"
     *typePrefix = "lau";
   }
   else if (type=="BernsteinStepxGau") {
@@ -235,7 +235,12 @@ RooAbsPdf* getPdf(PdfModelBuilder &pdfsModel, string type, int order, string *ty
     *typePrefix = "pow";
   }
   else if (type=="LaurentStepxGau") {
-    pdf = pdfsModel.getLaurentStepxGau(Form("%s_lau%d",ext,order),order);
+    // If midPowVal is provided (i.e., not its default -5, which matches the CLI default for midPow), use it.
+    if (midPowVal != -5) {
+      pdf = pdfsModel.getLaurentStepxGau(Form("%s_lau%d",ext,order), order, midPowVal);
+    } else {
+      pdf = pdfsModel.getLaurentStepxGau(Form("%s_lau%d",ext,order), order);
+    }
     *typePrefix = "lau";
   }
   else if (type=="ExpModGauss"){
@@ -283,7 +288,7 @@ RooAbsPdf* getPdf(PdfModelBuilder &pdfsModel, string type, int order, string *ty
       setPdfParams(pdf, params);
     }
   }
-  
+
   return pdf;
 }
 
@@ -430,6 +435,7 @@ void runFit(RooAbsPdf *pdf, RooDataSet *data, double *NLL, int *stat_t, int MaxT
 }
 
 void runFit(RooAbsPdf *pdf, RooDataHist *data, double *NLL, int *stat_t, int MaxTries, bool doBlind=false, const std::string& cat = "", const std::string& typePrefix = "", int order = -1, int nBins = -1, const RooAbsPdf* pdfToSave = nullptr) {
+  std::cout << "[INFO] Running fit with Chi2 fit" << endl;
   // Initialize variables
   int ntries = 0;
   int stat = 1;
@@ -665,7 +671,7 @@ double getGoodnessOfFit(RooRealVar *mass, RooAbsPdf *mpdf, RooDataSet *data, std
   nBinsForMass = 4*(mgg_high-mgg_low);
 
   double prob;
-  int ntoys = 100;
+  int ntoys = 500;
   // Routine to calculate the goodness of fit. 
   name+="_gofTest.pdf";
   RooRealVar norm("norm","norm",data->sumEntries(),0,10E6);
@@ -686,7 +692,7 @@ double getGoodnessOfFit(RooRealVar *mass, RooAbsPdf *mpdf, RooDataSet *data, std
   // The first thing is to check if the number of entries in any bin is < 5 
   // if so, we don't rely on asymptotic approximations
  
-  if ((double)data->sumEntries()/nBinsForMass < 0 ){ // 5
+  if ((double)data->sumEntries()/nBinsForMass < 5 ){ // 5
 
     std::cout << "[INFO] Running toys for GOF test " << std::endl;
     // store pre-fit params 
@@ -698,7 +704,7 @@ double getGoodnessOfFit(RooRealVar *mass, RooAbsPdf *mpdf, RooDataSet *data, std
     int npass =0;
     std::vector<double> toy_chi2;
     for (int itoy = 0 ; itoy < ntoys ; itoy++){
-    //  std::cout << "[INFO] " <<Form("\t.. %.1f %% complete\r",100*float(itoy)/ntoys) << std::flush;
+      std::cout << "[INFO] " <<Form("\t.. %.1f %% complete\r",100*float(itoy)/ntoys) << std::flush;
       params->assignValueOnly(preParams);
       int nToyEvents = RandomGen->Poisson(ndata);
       RooDataHist *binnedtoy = pdf->generateBinned(RooArgSet(*mass),nToyEvents,0,1);
@@ -1323,10 +1329,9 @@ bool SpurialSignalTest(RooRealVar *input_mass, TString cat, TString funcType, in
   // Load data histograms (full range and sideband)
   TString frHistName = Form("data_full_%s_%s", runPeriod.Data(), cat.Data());
   TString sbHistName = Form("data_%s_%s", runPeriod.Data(), cat.Data());
-  TH1F* hfr = loadHistogram(fbkg, frHistName, Form("%s_clone", frHistName.Data()));
   TH1F* hsb = loadHistogram(fbkg, sbHistName, Form("%s_clone", sbHistName.Data()));
   
-  if (!hfr || !hsb) {
+  if (!hsb) {
     std::cerr << "[ERROR] Data templates not found" << std::endl;
     fbkg->Close();
     output.close();
@@ -1348,6 +1353,21 @@ bool SpurialSignalTest(RooRealVar *input_mass, TString cat, TString funcType, in
     output.close();
     return false;
   }
+
+  // Store the bkg hist between mgg_low and mgg_high
+  TH1F *hbkgclone = (TH1F*)hbkg->Clone("hbkgclone");
+  hbkg = new TH1F("hbkg", "hbkg", bin_size, mgg_low, mgg_high);
+  for (int i = 1; i <= hbkg->GetNbinsX(); i++) {
+    double binCenter = hbkg->GetBinCenter(i);
+    int oldBin = hbkgclone->FindBin(binCenter);
+    if (oldBin > 0){
+      hbkg->SetBinContent(i, hbkgclone->GetBinContent(oldBin));
+      hbkg->SetBinError(i, hbkgclone->GetBinError(oldBin));
+    } else {
+      std::cerr << "[ERROR] Old bin not found for bin center " << binCenter << std::endl;
+    }
+  }
+  delete hbkgclone;
   
   // Open signal template file and get signal PDF
   TString signalFileName = Form("/eos/user/j/jiehan/finalfit_102X/CMSSW_10_2_13/src/flashggFinalFit/Signal/outdir_combinedPDFs/CMS-HGG_combinedPDFs_%s.root", cat.Data());
@@ -1419,8 +1439,6 @@ bool SpurialSignalTest(RooRealVar *input_mass, TString cat, TString funcType, in
   
   // Create RooDataHist objects
   RooDataHist* dbkg = new RooDataHist("bkg_mc", "dataset with x", *mass, hbkg);
-  RooDataHist* dsb = new RooDataHist("data_sb", "dataset with x", *mass, hsb);
-  RooDataHist* dfr = new RooDataHist("data_fr", "dataset with x", *mass, hfr);
   
   // Set signal and background normalization variables
   RooRealVar nsig("nsig", "nsig", sigevents, -100 * sigevents, 100 * sigevents);
@@ -1472,7 +1490,7 @@ bool SpurialSignalTest(RooRealVar *input_mass, TString cat, TString funcType, in
   
   // Create pseudo data: inject signal
   TH1F* hdata = (TH1F*)hbkg->Clone("hdata");
-  hsig->Reset();
+  hsig = new TH1F("hsig", "hsig", bin_size, mgg_low, mgg_high);
   
   // Normalize signal PDF and fill histogram
   RooAbsReal* normIntegral = signalPdf->createIntegral(*mass);
@@ -1615,25 +1633,25 @@ bool SpurialSignalTest(RooRealVar *input_mass, TString cat, TString funcType, in
   frame_data->SetTitleOffset(0.75, "Y");
   frame_data->Draw();
   leg->Draw("same");
-  
-  // Add signal curve
-  signalPdf->plotOn(frame_data, Name("signal"),Normalization(ss, RooAbsReal::NumEvent), 
-                  LineColor(kRed), LineWidth(4));
-  
-  // Create residuals panel
-  pad2->cd();
-  TH1D* hdummy = new TH1D("hdummyweight", "", mgg_high - mgg_low, mgg_low, mgg_high);
-  hdummy->SetStats(0);
-  hdummy->SetMaximum(5);
-  hdummy->SetMinimum(-5);
-  hdummy->GetYaxis()->SetTitle("Data - Bkg PDF");
-  hdummy->GetYaxis()->SetTitleOffset(0.35);
-  hdummy->GetYaxis()->SetTitleSize(0.12);
-  hdummy->GetYaxis()->SetLabelSize(0.09);
-  hdummy->GetXaxis()->SetTitle("m_{ll#gamma} (GeV)");
-  hdummy->GetXaxis()->SetTitleSize(0.12);
-  hdummy->GetXaxis()->SetLabelSize(0.09);
-  hdummy->Draw("HIST");
+
+    // Create residuals panel
+    pad2->cd();
+    // Add signal curve to frame_data (this is for pad1, but the RooCurve object is created)
+    signalPdf->plotOn(frame_data, Name("signal"),Normalization(ss, RooAbsReal::NumEvent), LineColor(kRed), LineWidth(4));
+    RooCurve* signalCurveOnPad2 = (RooCurve*)frame_data->findObject("signal");
+    signalCurveOnPad2->Draw("L SAME"); // Draw the signal curve on pad2
+    TH1D* hdummy = new TH1D("hdummyweight", "", mgg_high - mgg_low, mgg_low, mgg_high);
+    hdummy->SetStats(0);
+    // hdummy->SetMaximum(5);
+    // hdummy->SetMinimum(-5);
+    hdummy->GetYaxis()->SetTitle("Data - Bkg PDF");
+    hdummy->GetYaxis()->SetTitleOffset(0.35);
+    hdummy->GetYaxis()->SetTitleSize(0.12);
+    hdummy->GetYaxis()->SetLabelSize(0.09);
+    hdummy->GetXaxis()->SetTitle("m_{ll#gamma} (GeV)");
+    hdummy->GetXaxis()->SetTitleSize(0.12);
+    hdummy->GetXaxis()->SetLabelSize(0.09);
+    hdummy->Draw("HIST SAME"); // Draws the base histogram for pad2
   
   // Plot residuals and signal curve
   TGraphAsymmErrors* hdatasub = new TGraphAsymmErrors();
@@ -1695,6 +1713,7 @@ int main(int argc, char* argv[]){
   bool isData_ =0;
   double mgg_low, mgg_high;
   int nBinsForMass;
+  int midPow;
 
   po::options_description desc("Allowed options");
   desc.add_options()
@@ -1715,6 +1734,7 @@ int main(int argc, char* argv[]){
 		("flashggCats,f", po::value<string>(&flashggCatsStr_)->default_value("UntaggedTag_0,UntaggedTag_1,UntaggedTag_2,UntaggedTag_3,UntaggedTag_4,VBFTag_0,VBFTag_1,VBFTag_2,TTHHadronicTag,TTHLeptonicTag,VHHadronicTag,VHTightTag,VHLooseTag,VHEtTag"),       "Flashgg category names to consider")
     ("year", po::value<string>(&year_)->default_value("2016"),       "Dataset year")
     ("catOffset", po::value<int>(&catOffset)->default_value(0),       "Category numbering scheme offset")
+    ("midPow", po::value<int>(&midPow)->default_value(-5),       "Mid power for the laurent function")
     ("mgg_low", po::value<double>(&mgg_low)->default_value(95),                            "Lower bound for mgg")
     ("mgg_high", po::value<double>(&mgg_high)->default_value(170),                                                "Upper bound for mgg")
     ("verbose,v",                                                                               "Run with more output")
@@ -1728,6 +1748,7 @@ int main(int argc, char* argv[]){
 	if (vm.count("unblind")) BLIND=false;
   if (vm.count("blindFit")) BLIND_FIT=true;
   saveMultiPdf = vm.count("saveMultiPdf");
+  std::cout << "[INFO] middle power order of laurent is: " << midPow << endl;
 
   if (vm.count("verbose")) verbose=true;
   if (vm.count("runFtestCheckWithToys")) runFtestCheckWithToys=true;
@@ -1960,7 +1981,9 @@ int main(int argc, char* argv[]){
       string typePrefix;
       // while (prob<upperEnvThreshold){
 			while (prob<upperEnvThreshold && order < 7){
-        RooAbsPdf *bkgPdf = getPdf(pdfsModel,*funcType,order,&typePrefix,Form("ftest_pdf_%d_%s",(cat+catOffset),ext.c_str()), catname);
+        // RooAbsPdf *bkgPdf = getPdf(pdfsModel,*funcType,order,&typePrefix,Form("ftest_pdf_%d_%s",(cat+catOffset),ext.c_str()), catname); // OLD CALL
+        // Call getPdf, passing the midPow value from command line arguments
+        RooAbsPdf *bkgPdf = getPdf(pdfsModel,*funcType,order,&typePrefix,Form("ftest_pdf_%d_%s",(cat+catOffset),ext.c_str()), catname, midPow); // NEW CALL
         if (!bkgPdf){
           // assume this order is not allowed
           order++;
@@ -2034,7 +2057,9 @@ int main(int argc, char* argv[]){
 				std::cout << "[INFO] Upper end Threshold for highest order function " << upperEnvThreshold <<std::endl;
 
 				while (prob<upperEnvThreshold && order < 7){
-					RooAbsPdf *bkgPdf = getPdf(pdfsModel,*funcType,order,&typePrefix,Form("env_pdf_%d_%s",(cat+catOffset),ext.c_str()), catname);
+					// RooAbsPdf *bkgPdf = getPdf(pdfsModel,*funcType,order,&typePrefix,Form("env_pdf_%d_%s",(cat+catOffset),ext.c_str()), catname); // OLD CALL
+          // Call getPdf, passing the midPow value from command line arguments
+          RooAbsPdf *bkgPdf = getPdf(pdfsModel,*funcType,order,&typePrefix,Form("env_pdf_%d_%s",(cat+catOffset),ext.c_str()), catname, midPow); // NEW CALL
           cout << "[INFO] get pdf called " << *funcType << " " << order << " " << bkgPdf << endl;
 					if (!bkgPdf ){
 						// assume this order is not allowed
@@ -2062,7 +2087,7 @@ int main(int argc, char* argv[]){
 						// if (chi2<0. && order>1) chi2=0.;
 						prob = TMath::Prob(chi2,order-prev_order);
 
-						cout << "[INFO] \t " << *funcType << " " << order << " " << prevNll << " " << thisNll << " " << chi2 << " " << prob << endl;
+						cout << "[INFO] \t function type:" << *funcType << ", order: " << order << ", previous Nll: " << prevNll << ", this Nll: " << thisNll << ", Chi2: " << chi2 << ", Probility: " << prob << endl;
 						prevNll=thisNll;
 						cache_order=prev_order;
 						cache_pdf=prev_pdf;

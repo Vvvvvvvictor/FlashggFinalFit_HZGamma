@@ -226,7 +226,7 @@ if opts.plots:
     # print("Bias results saved to: %s" % json_output)
     
     # Create a new plot with mean on X-axis and expectSignal on Y-axis
-    canvas = r.TCanvas("canvas", "Bias Study", 800, 600)
+    canvas = r.TCanvas("canvas", "Bias Study", 800, 800)
     canvas.SetGrid()
     
     # Set appropriate margins
@@ -392,7 +392,7 @@ if opts.plots:
     bias_text.SetTextSize(0.035)  # Larger text
     
     # Calculate text box position and size
-    text_x = 0.65
+    text_x = 0.6
     text_y_top = 0.85
     text_y_step = 0.045  # Larger spacing
     

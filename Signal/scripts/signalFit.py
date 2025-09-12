@@ -96,6 +96,7 @@ inputWS0 = f0.Get(inputWSName__)
 xvar = inputWS0.var(opt.xvar)
 xvarFit = xvar.Clone()
 dZ = inputWS0.var("dZ")
+print " --> xvar = %s, dZ = %s"%(xvar.GetName(),dZ.GetName())
 aset = ROOT.RooArgSet(xvar,dZ)
 f0.Close()
 

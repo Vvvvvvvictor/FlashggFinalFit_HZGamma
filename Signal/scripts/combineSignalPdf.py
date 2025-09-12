@@ -34,9 +34,10 @@ combinedWS.imp(MH)
 all_pdfs = []
 
 # Find all input files
-input_files = glob.glob("./outdir_%s/CMS-HGG_sigfit_%s_%s.root" % (opt.inputExt, opt.inputExt, opt.cat))
+file_name = "./outdir_%s/CMS-HGG_sigfit_%s_%s.root" % (opt.inputExt, opt.inputExt, opt.cat)
+input_files = glob.glob(file_name)
 if not input_files:
-    print "Warning: No input files found for category %s" % (opt.cat)
+    print "Warning: No input files %s found for category %s" % (file_name, opt.cat)
     sys.exit(1)
 
 # Process each input file

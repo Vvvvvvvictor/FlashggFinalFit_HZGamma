@@ -27,6 +27,7 @@ wait_for_condor_jobs() {
     done
 }
 
+clear
 source /cvmfs/cms.cern.ch/cmsset_default.sh
 cmsenv
 source setup.sh
@@ -83,22 +84,29 @@ years=("2016preVFP" "2016postVFP" "2017" "2018" "2022preEE" "2022postEE" "2023pr
 # done
 
 # # packaged
-# python RunPackager.py --cats VBF0,VBF1,VBF2,VBF3 --exts fiducial_2016preVFP,fiducial_2016postVFP,fiducial_2017,fiducial_2018,fiducial_2022preEE,fiducial_2022postEE,fiducial_2023preBPix,fiducial_2023postBPix --mergeYears --batch local --outputExt packaged
+# python RunPackager.py --cats Incl0,Incl1,Incl2,Incl3,Incl4,Incl5,Incl6,Incl7 --exts fiducial_2016preVFP,fiducial_2016postVFP,fiducial_2017,fiducial_2018,fiducial_2022preEE,fiducial_2022postEE,fiducial_2023preBPix,fiducial_2023postBPix --mergeYears --batch local --outputExt packaged
 # #ggH0,ggH1,ggH2,ggH3,VBF0,VBF1,VBF2,VBF3,VHlep,ZHinv,ttHl,ttHh
 
-# # signal model plotting
+# signal model plotting
 # python RunPlotter.py --procs all --cats all --years 2016preVFP,2016postVFP,2017,2018,2022preEE,2022postEE,2023preBPix,2023postBPix --ext packaged
+# for cat in "Incl0" "Incl1" "Incl2" "Incl3" "Incl4" "Incl5" "Incl6" "Incl7"; do
+#     python RunPlotter.py --procs all --cats $cat --years 2016preVFP,2016postVFP,2017,2018,2022preEE,2022postEE,2023preBPix,2023postBPix --ext packaged
+# done
 
-# for cat in VBF0 VBF1 VBF2 VBF3; do python scripts/combineSignalPdf.py --cat $cat; done
+# for cat in Incl0 Incl1 Incl2 Incl3 Incl4 Incl5 Incl6 Incl7; do python scripts/combineSignalPdf.py --cat $cat; done
 
 ###########################################
 # Background
 ###########################################
 cd ${mainPath}/Background
-# make clean; make -j 16;
+make clean; make -j 16;
 
-# normal workspace via fTest
-python RunBackgroundScripts.py --inputConfig config_fiducial_run2.py --mode fTestParallel --jobOpts “--blindFit”
+for cat in 0; do
+    /eos/home-j/jiehan/finalfit_102X/CMSSW_10_2_13/src/flashggFinalFit/Background/runBackgroundScripts.sh -i /eos/home-j/jiehan/root/input_finalfit/background/ws/output_Data_all.root -p none -f ggF${cat} --ext fiducialAnalysis --catOffset $cat --intLumi 1 --year all --batch local --queue hep.q --sigFile none --isData --fTest
+done
+
+# # normal workspace via fTest
+# python RunBackgroundScripts.py --inputConfig config_fiducial_run2.py --mode fTestParallel --jobOpts “--blindFit”
 
 # # make workspace with documentation
 # ./bin/BkgWSMaker -t "bern2,pow1,lau2,modgau1" -i /eos/home-j/jiehan/root/input_finalfit/background/ws/output_Data_all.root --saveMultiPdf outdir_fiducialAnalysis/CMS-HGG_multipdf_VBF0.root -D outdir_fiducialAnalysis/bkgfTest-Data -f VBF0 --mgg_low 100  --isData 1 --year all --catOffset 0 -v
@@ -110,14 +118,14 @@ python RunBackgroundScripts.py --inputConfig config_fiducial_run2.py --mode fTes
 # Datacard
 ###########################################
 # cd ${mainPath}/Datacard
-# for cat in "VBF0" "VBF1" "VBF2" "VBF3"; do
-#     inputstring=$(IFS=,; for year in "${years[@]}"; do echo -n "${year}=${SignalWSPath}_${year}/,"; done | sed 's/,$//')
-#     echo $inputstring
-#     python RunYields.py --inputWSDirMap $inputstring --cats $cat --procs auto --batch local --ext $cat --mergeYears --skipZeroes # --doSystematics
-#     python makeDatacard.py --years $(IFS=,; echo "${years[*]}") --ext $cat --prune --pruneThreshold 0.001 --mergeYears --output Datacard_$cat #--doSystematics 
-# done
+# # for cat in "VBF0" "VBF1" "VBF2" "VBF3"; do
+# #     inputstring=$(IFS=,; for year in "${years[@]}"; do echo -n "${year}=${SignalWSPath}_${year}/,"; done | sed 's/,$//')
+# #     echo $inputstring
+# #     python RunYields.py --inputWSDirMap $inputstring --cats $cat --procs auto --batch local --ext $cat --mergeYears --skipZeroes # --doSystematics
+# #     python makeDatacard.py --years $(IFS=,; echo "${years[*]}") --ext $cat --prune --pruneThreshold 0.001 --mergeYears --output Datacard_$cat #--doSystematics 
+# # done
 # inputstring=$(IFS=,; for year in "${years[@]}"; do echo -n "${year}=${SignalWSPath}_${year}/,"; done | sed 's/,$//')
-# python RunYields.py --inputWSDirMap $inputstring --cats auto --procs auto --batch local --ext fiducial --mergeYears --skipZeroes # --doSystematics
+# # python RunYields.py --inputWSDirMap $inputstring --cats auto --procs auto --batch local --ext fiducial --mergeYears --skipZeroes # --doSystematics
 # python makeDatacard.py --years $(IFS=,; echo "${years[*]}") --ext fiducial --prune --pruneThreshold 0.001 --mergeYears --output Datacard_fiducial #--doSystematics
 
 # python RunYields.py --inputWSDirMap $inputstring --cats ggH0,ggH1,ggH2,ggH3 --procs auto --doSystematics --batch local --ext ggH --mergeYears --skipZeroes
@@ -130,18 +138,26 @@ python RunBackgroundScripts.py --inputConfig config_fiducial_run2.py --mode fTes
 ###########################################
 # Combine
 ###########################################
-cd ${mainPath}/Combine
-cp ../Datacard/Datacard*.txt .
-rm -rf Models; mkdir Models
-mkdir Models/signal
-mkdir Models/background
-cp -r ../Signal/outdir_packaged/CMS-HGG_sigfit_packaged_* Models/signal/
-cp -r ../Background/outdir_fiducialAnalysis/CMS-HGG_multipdf_* Models/background/
+# cd ${mainPath}/Combine
+# cp ../Datacard/Datacard*.txt .
+# rm -rf Models; mkdir Models
+# mkdir Models/signal
+# mkdir Models/background
+# cp -r ../Signal/outdir_packaged/CMS-HGG_sigfit_packaged_* Models/signal/
+# cp -r ../Background/outdir_fiducialAnalysis/CMS-HGG_multipdf_* Models/background/
 
-for ext in "_fiducial" "_VBF0" "_VBF1"  "_VBF2" "_VBF3"; do #"_fiducial" "_VBF0" "_VBF1"  "_VBF2" "_VBF3"; do
-    python RunText2Workspace.py --ext $ext --mode mu_fiducial --batch local
-    combine Datacard${ext}_mu_fiducial.root -M Significance -t -1 --expectSignal=1 -m 125.0 -n $ext
-done
+# # for ext in "_fiducial" "_VBF0" "_VBF1"  "_VBF2" "_VBF3"; do #"_fiducial" "_VBF0" "_VBF1"  "_VBF2" "_VBF3"; do
+# #     python RunText2Workspace.py --ext $ext --mode mu_fiducial --batch local
+# #     combine Datacard${ext}_mu_fiducial.root -M Significance -t -1 --expectSignal=1 -m 125.0 -n $ext
+# # done
+
+# for ext in "fiducial" "Incl0" "Incl1" "Incl2" "Incl3" "Incl4" "Incl5" "Incl6" "Incl7"; do #"fiducial" "Incl0" "Incl1" "Incl2" "Incl3" "Incl4" "Incl5" "Incl6" "Incl7"
+#     python RunText2Workspace.py --ext _${ext} --mode mu_fiducial --batch local
+# done
+
+# for ext in "fiducial" "Incl0" "Incl1" "Incl2" "Incl3" "Incl4" "Incl5" "Incl6" "Incl7"; do
+#     combine Datacard_${ext}_mu_fiducial.root -M Significance -t -1 --expectSignal=1 -m 125.0 -n $ext
+# done
 
 # # Bias Study
 # cd Checks/
@@ -161,26 +177,29 @@ done
 
 # 改改名字
 # sed -i -E '/13TeV_bkgshape/s/(13TeV_bkgshape)/2022_\1_norm/g; /pdfindex/s/(resolution)/\1_2022/g' Datacard.txt
-# # 送到afs去
+# # # 送到afs去
 # cp models.py ~/finalfit/CMSSW_10_2_13/src/flashggFinalFit/Combine/
 # cp inputs.json ~/finalfit/CMSSW_10_2_13/src/flashggFinalFit/Combine/
 # cp Datacard*.txt ~/finalfit/CMSSW_10_2_13/src/flashggFinalFit/Combine/
 # cp -r Models ~/finalfit/CMSSW_10_2_13/src/flashggFinalFit/Combine/
 # cp Checks/RunBiasStudy.py ~/finalfit/CMSSW_10_2_13/src/flashggFinalFit/Combine/Checks/
 # cp Checks/biasUtils.py ~/finalfit/CMSSW_10_2_13/src/flashggFinalFit/Combine/Checks/
-cd ~/finalfit/CMSSW_10_2_13/src/flashggFinalFit/
-# 环境
-source /cvmfs/cms.cern.ch/cmsset_default.sh
-cmsenv
-source setup.sh
-cd Combine
-python RunText2Workspace.py --ext _fiducial --mode mu_fiducial --batch local
-# python RunFits.py --inputJson inputs.json --ext _fiducial --mode mu_fiducial --batch condor
 
-for cat in "VBF0" "VBF1" "VBF2" "VBF3"; do
-    python RunText2Workspace.py --ext _$cat --mode mu_fiducial --batch local
-    # python RunFits.py --inputJson inputs.json --ext _$cat --mode mu_fiducial --batch condor
-done
+# cd ~/finalfit/CMSSW_10_2_13/src/flashggFinalFit/
+# # 环境
+# source /cvmfs/cms.cern.ch/cmsset_default.sh
+# cmsenv
+# source setup.sh
+# cd Combine
+
+# for cat in "fiducial" "Incl0" "Incl1" "Incl2" "Incl3" "Incl4" "Incl5" "Incl6" "Incl7"; do #"fiducial" "Incl0" "Incl1" "Incl2" "Incl3" "Incl4" "Incl5" "Incl6" "Incl7"
+#     python RunText2Workspace.py --ext _$cat --mode mu_fiducial --batch local
+#     python RunFits.py --inputJson inputs.json --ext _$cat --mode mu_fiducial --batch condor
+# done
+
+# for cat in Incl0 Incl1 Incl2 Incl3 Incl4 Incl5 Incl6 Incl7 fiducial; do
+#   sed -i 's/--freezeParameters allConstrainedNuisances/--freezeParameters MH/g' "/afs/cern.ch/user/j/jiehan/finalfit/CMSSW_10_2_13/src/flashggFinalFit/Combine/runFits_${cat}_mu_fiducial/condor_profile1D_statonly_r.sh"
+# done
 
 # # # for ext in "_VBF"; #"_fiducial" "_ggH" "_VBF" "_others"; 
 # # # do
@@ -188,32 +207,32 @@ done
 # # #     # python RunFits.py --inputJson inputs.json --ext $ext --mode mu_fiducial --batch condor
 # # # done
 
-# # # for ext in "_fiducial" "_VBF0" "_VBF1" "_VBF2" "_VBF3"; do cd runFits${ext}_mu_fiducial; rm *log *err *out *root; find . -name "*statonly*.sub" -exec condor_submit {} \;; cd ..; done # "_ggH" "_VBF" "_others"
+# for ext in "fiducial" "Incl0"; do cd runFits_${ext}_mu_fiducial; rm *log *err *out *root; find . -name "*statonly*.sub" -exec condor_submit {} \;; cd ..; done # "_ggH" "_VBF" "_others"
 
-# Bias Study
-cd Checks/
-for cat in "VBF0" "VBF1"  "VBF2" "VBF3"; do # 
-    python RunBiasStudy.py -j $cat -d /eos/home-j/jiehan/finalfit_102X/CMSSW_10_2_13/src/flashggFinalFit/Combine/Datacard_${cat}_mu_fiducial.root -t -n 1000 --condor --dryRun
-    python RunBiasStudy.py -j $cat -d /eos/home-j/jiehan/finalfit_102X/CMSSW_10_2_13/src/flashggFinalFit/Combine/Datacard_${cat}_mu_fiducial.root -f -n 1000 -c "--cminDefaultMinimizerStrategy 0 --X-rtd MINIMIZER_freezeDisassociatedParams --X-rtd MINIMIZER_multiMin_hideConstants --X-rtd MINIMIZER_multiMin_maskConstraints   --rMin -100 --rMax 100  --freezeParameters MH" --condor --dryRun
-done
-# need to submit with condor and better to sleep 600s between two jobs to avoid overflow of afs quota
-find . -maxdepth 1 -name '*toys.sub' -exec condor_submit {} \; -exec echo 'sleep 10 minutes...' \; -exec sleep 600 \;
-find . -maxdepth 1 -name '*fits.sub' -exec condor_submit {} \; -exec echo 'sleep 10 minutes...' \; -exec sleep 600 \;
+# # Bias Study
+# cd Checks/
+# for cat in "VBF0" "VBF1"  "VBF2" "VBF3"; do # 
+#     python RunBiasStudy.py -j $cat -d /eos/home-j/jiehan/finalfit_102X/CMSSW_10_2_13/src/flashggFinalFit/Combine/Datacard_${cat}_mu_fiducial.root -t -n 1000 --condor --dryRun
+#     python RunBiasStudy.py -j $cat -d /eos/home-j/jiehan/finalfit_102X/CMSSW_10_2_13/src/flashggFinalFit/Combine/Datacard_${cat}_mu_fiducial.root -f -n 1000 -c "--cminDefaultMinimizerStrategy 0 --X-rtd MINIMIZER_freezeDisassociatedParams --X-rtd MINIMIZER_multiMin_hideConstants --X-rtd MINIMIZER_multiMin_maskConstraints   --rMin -100 --rMax 100  --freezeParameters MH" --condor --dryRun
+# done
+# # need to submit with condor and better to sleep 600s between two jobs to avoid overflow of afs quota
+# find . -maxdepth 1 -name '*toys.sub' -exec condor_submit {} \; -exec echo 'sleep 10 minutes...' \; -exec sleep 600 \;
+# find . -maxdepth 1 -name '*fits.sub' -exec condor_submit {} \; -exec echo 'sleep 10 minutes...' \; -exec sleep 600 \;
 
-# Call the function to wait for jobs
-wait_for_condor_jobs
+# # Call the function to wait for jobs
+# wait_for_condor_jobs
 
-# Now proceed with the next steps after jobs are done
-echo "Proceeding with plotting bias results..."
-for cat in "VBF0" "VBF1" "VBF2" "VBF3"; do
-    python RunBiasStudy.py -j $cat -d /eos/home-j/jiehan/finalfit_102X/CMSSW_10_2_13/src/flashggFinalFit/Combine/Datacard_${cat}_mu_fiducial.root -p --gaussianFit
-done
+# # Now proceed with the next steps after jobs are done
+# echo "Proceeding with plotting bias results..."
+# for cat in "VBF0" "VBF1" "VBF2" "VBF3"; do
+#     python RunBiasStudy.py -j $cat -d /eos/home-j/jiehan/finalfit_102X/CMSSW_10_2_13/src/flashggFinalFit/Combine/Datacard_${cat}_mu_fiducial.root -p --gaussianFit
+# done
 
-cd .. # Go back to Combine directory from Checks
+# cd .. # Go back to Combine directory from Checks
 
-for cat in "fiducial" "VBF0" "VBF1" "VBF2" "VBF3"; do
-    combine Datacard_${cat}_mu_fiducial.root -M Significance -t -1 --expectSignal=1 -m 125.0 -n allCats
-done
+# for cat in "fiducial" "Incl0" "Incl1" "Incl2" "Incl3" "Incl4" "Incl5" "Incl6" "Incl7"; do
+#     combine Datacard_${cat}_mu_fiducial.root -M Significance -t -1 --expectSignal=1 -m 125.0 -n allCats
+# done
 
 # # submit mu scan condor jobs
 # for ext in "_fiducial" "_VBF0" "_VBF1" "_VBF2" "_VBF3"; do cd runFits${ext}_mu_fiducial; find . -name "*.sub" -exec condor_submit {} \;; cd ..; done
@@ -223,6 +242,15 @@ done
 
 # python CollectFits.py --inputJson inputs.json --mode mu_fiducial --ext _fiducial
 # plot1DScan.py runFits_fiducial_mu_fiducial/profile1D_syst_r.root --y-cut 5 --y-max 5 --output r_fiducial_fixed_statsyst --POI r --translate ../Plots/pois_mu.json --main-label 'Expected' --main-color 1 --others runFits_fiducial_mu_fiducial/profile1D_statonly_r.root:'Stat only':2 --logo-sub 'Work in Progress'
+
+# exts=("_fiducial" "_Incl0" "_Incl1" "_Incl2" "_Incl3" "_Incl4" "_Incl5" "_Incl6" "_Incl7")
+# lims=("7" "0.4" "2" "3.5" "3.5" "3.5" "3.5" "3.5" "3.5")
+# for i in {2..2}; do #{0..8}
+#     ext=${exts[i]}
+#     lim=${lims[i]}
+#     python CollectFits.py --inputJson inputs.json --mode mu_fiducial --ext $ext
+#     plot1DScan.py runFits${ext}_mu_fiducial/profile1D_statonly_r.root --y-cut $lim --y-max $lim --output r${ext}_fixed_statsyst --POI r --translate ../Plots/pois_mu.json --main-label 'Expected(Stat only)' --main-color 1 --logo-sub 'Work in Progress'
+# done
 
 # # exts=("_fiducial" "_ggH" "_VBF" "_others")
 # # lims=("5" "2" "3" "0.2")
@@ -239,7 +267,7 @@ done
 # done
 
 # cd ../Plots
-# python makeSplusBModelPlot.py --inputWSFile ../Combine/Datacard_fiducial_mu_fiducial.root --cats all --doZeroes --ext _Run23 --translateCats cats.json
+# python makeSplusBModelPlot.py --inputWSFile ../Combine/Datacard_fiducial_mu_fiducial.root --cats all --doZeroes --ext _alljet --translateCats cats.json --doCatWeights
 
 # impact plot
 # text2workspace.py Datacard_fiducial.txt -m 125 -o Datacard_fiducial.root

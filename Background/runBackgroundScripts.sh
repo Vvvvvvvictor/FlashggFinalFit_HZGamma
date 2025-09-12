@@ -160,14 +160,33 @@ OPT=" --isData 1"
 fi
 
 # Modify the fitting range if necessary
-if [ "$CATS" = "VBF0" ]; then
-  RANGELOW=" --mgg_low 105 --mgg_high 170"
-elif [ "$CATS" = "VBF1" ]; then
-  RANGELOW=" --mgg_low 100 --mgg_high 165"
-elif [ "$CATS" = "VBF2" ]; then
-  RANGELOW=" --mgg_low 95 --mgg_high 161"
-elif [ "$CATS" = "VBF3" ]; then
-  RANGELOW=" --mgg_low 95 --mgg_high 160"
+# if [ "$CATS" = "VBF0" ]; then
+#   RANGELOW=" --mgg_low 105 --mgg_high 170"
+# elif [ "$CATS" = "VBF1" ]; then
+#   RANGELOW=" --mgg_low 100 --mgg_high 165"
+# elif [ "$CATS" = "VBF2" ]; then
+#   RANGELOW=" --mgg_low 95 --mgg_high 161"
+# elif [ "$CATS" = "VBF3" ]; then
+#   RANGELOW=" --mgg_low 95 --mgg_high 160"
+# else
+#   RANGELOW=""
+# fi
+if [ "$CATS" = "Incl0" ]; then
+  RANGELOW=" --mgg_low 107 --mgg_high 165 --midPow -5"
+elif [ "$CATS" = "Incl1" ]; then
+  RANGELOW=" --mgg_low 105 --mgg_high 165 --midPow -8"
+elif [ "$CATS" = "Incl2" ]; then
+  RANGELOW=" --mgg_low 103 --mgg_high 165 --midPow -5"
+elif [ "$CATS" = "Incl3" ]; then
+  RANGELOW=" --mgg_low 102 --mgg_high 165 --midPow -7"
+elif [ "$CATS" = "Incl4" ]; then
+  RANGELOW=" --mgg_low 100 --mgg_high 162 --midPow -5"
+elif [ "$CATS" = "Incl5" ]; then
+  RANGELOW=" --mgg_low 97 --mgg_high 160 --midPow -5"
+elif [ "$CATS" = "Incl6" ]; then
+  RANGELOW=" --mgg_low 95 --mgg_high 160 --midPow -4"
+elif [ "$CATS" = "Incl7" ]; then
+  RANGELOW=" --mgg_low 95 --mgg_high 160 --midPow -4"
 else
   RANGELOW=""
 fi

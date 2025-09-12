@@ -197,6 +197,10 @@ RooAbsPdf *PdfModelBuilder::getExponentialStepxGau(string prefix, int order){
 }
 
 RooAbsPdf *PdfModelBuilder::getLaurentStepxGau(string prefix, int order){
+  return getLaurentStepxGau(prefix, order, -5);
+}
+
+RooAbsPdf *PdfModelBuilder::getLaurentStepxGau(string prefix, int order, int mid = -5){
   if (order > 7) return NULL;
   RooRealVar *mean = new RooRealVar(Form("%s_mean", prefix.c_str()), Form("%s_mean", prefix.c_str()), 0.);
   RooRealVar *sigma = new RooRealVar(Form("%s_sigma", prefix.c_str()), Form("%s_sigma", prefix.c_str()), 5., 1., 10.);
@@ -216,7 +220,7 @@ RooAbsPdf *PdfModelBuilder::getLaurentStepxGau(string prefix, int order){
   int nlower = int(ceil(order / 2.));
   int nhigher = order - nlower;
 
-  int mid = -7;
+  // int mid = -5;
   int midPower = mid;
 
   RooRealVar *cp0 = new RooRealVar(Form("%s_cp0", prefix.c_str()), Form("%s_cp0_l%d", prefix.c_str(), order), 0.01, 0., 0.5);
