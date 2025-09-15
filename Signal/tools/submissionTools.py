@@ -39,11 +39,11 @@ def writeCondorSub(_file,_exec,_queue,_nJobs,_jobOpts,doHoldOnFailure=True,doPer
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def writeSubFiles(_opts):
   # Make directory to store sub files
-  if not os.path.isdir("%s/outdir_%s"%(swd__,_opts['ext'])): os.system("mkdir %s/outdir_%s"%(swd__,_opts['ext']))
-  if not os.path.isdir("%s/outdir_%s/%s"%(swd__,_opts['ext'],_opts['mode'])): os.system("mkdir %s/outdir_%s/%s"%(swd__,_opts['ext'],_opts['mode']))
-  if not os.path.isdir("%s/outdir_%s/%s/jobs"%(swd__,_opts['ext'],_opts['mode'])): os.system("mkdir %s/outdir_%s/%s/jobs"%(swd__,_opts['ext'],_opts['mode']))
+  if not os.path.isdir("%s/%s/outdir_%s"%(swd__,_opts['outputPath'],_opts['ext'])): os.system("mkdir -p %s/%s/outdir_%s"%(swd__,_opts['outputPath'],_opts['ext']))
+  if not os.path.isdir("%s/%s/outdir_%s/%s"%(swd__,_opts['outputPath'],_opts['ext'],_opts['mode'])): os.system("mkdir -p %s/%s/outdir_%s/%s"%(swd__,_opts['outputPath'],_opts['ext'],_opts['mode']))
+  if not os.path.isdir("%s/%s/outdir_%s/%s/jobs"%(swd__,_opts['outputPath'],_opts['ext'],_opts['mode'])): os.system("mkdir -p %s/%s/outdir_%s/%s/jobs"%(swd__,_opts['outputPath'],_opts['ext'],_opts['mode']))
 
-  _jobdir = "%s/outdir_%s/%s/jobs"%(swd__,_opts['ext'],_opts['mode'])
+  _jobdir = "%s/%s/outdir_%s/%s/jobs"%(swd__,_opts['outputPath'],_opts['ext'],_opts['mode'])
   # Remove current job files
   if len(glob.glob("%s/*"%_jobdir)): os.system("rm %s/*"%_jobdir)
   
@@ -63,7 +63,7 @@ def writeSubFiles(_opts):
             pcfidx = pidx*_opts['nCats']*_opts['nFlavs']+cidx*_opts['nFlavs']+fidx
             p,c,f = _opts['procs'].split(",")[pidx], _opts['cats'].split(",")[cidx], _opts['flavours'].split(",")[fidx]
             _f.write("if [ $1 -eq %g ]; then\n"%pcfidx)
-            _f.write("  python %s/scripts/signalFit.py --inputWSDir %s --ext %s --proc %s --cat %s --flav %s --year %s --analysis %s --massPoints %s --scales \'%s\' --scalesCorr \'%s\' --scalesGlobal \'%s\' --smears \'%s\' %s\n"%(swd__,_opts['inputWSDir'],_opts['ext'],p,c,f,_opts['year'],_opts['analysis'],_opts['massPoints'],_opts['scales'],_opts['scalesCorr'],_opts['scalesGlobal'],_opts['smears'],_opts['modeOpts']))
+            _f.write("  python %s/scripts/signalFit.py --inputWSDir %s --ext %s --proc %s --cat %s --flav %s --year %s --analysis %s --massPoints %s --scales \'%s\' --scalesCorr \'%s\' --scalesGlobal \'%s\' --smears \'%s\' --outputPath %s %s\n"%(swd__,_opts['inputWSDir'],_opts['ext'],p,c,f,_opts['year'],_opts['analysis'],_opts['massPoints'],_opts['scales'],_opts['scalesCorr'],_opts['scalesGlobal'],_opts['smears'],_opts['outputPath'],_opts['modeOpts']))
             _f.write("fi\n")
    
     # For looping over categories
@@ -75,7 +75,7 @@ def writeSubFiles(_opts):
           p = _opts['procs'].split(",")[pidx]
           for fidx in range(_opts['nFlavs']):
             f = _opts['flavours'].split(",")[fidx]
-            _f.write("  python %s/scripts/signalFit.py --inputWSDir %s --ext %s --proc %s --cat %s --flav %s --year %s --analysis %s --massPoints %s --scales \'%s\' --scalesCorr \'%s\' --scalesGlobal \'%s\' --smears \'%s\' %s\n"%(swd__,_opts['inputWSDir'],_opts['ext'],p,c,f,_opts['year'],_opts['analysis'],_opts['massPoints'],_opts['scales'],_opts['scalesCorr'],_opts['scalesGlobal'],_opts['smears'],_opts['modeOpts']))
+            _f.write("  python %s/scripts/signalFit.py --inputWSDir %s --ext %s --proc %s --cat %s --flav %s --year %s --analysis %s --massPoints %s --scales \'%s\' --scalesCorr \'%s\' --scalesGlobal \'%s\' --smears \'%s\' --outputPath %s %s\n"%(swd__,_opts['inputWSDir'],_opts['ext'],p,c,f,_opts['year'],_opts['analysis'],_opts['massPoints'],_opts['scales'],_opts['scalesCorr'],_opts['scalesGlobal'],_opts['smears'],_opts['outputPath'],_opts['modeOpts']))
             _f.write("fi\n")
 
     # FIXME: add flavs to calcPhotonSyst file
@@ -98,7 +98,7 @@ def writeSubFiles(_opts):
       for cidx in range(_opts['nCats']):
         c = _opts['cats'].split(",")[cidx]
         _f.write("if [ $1 -eq %g ]; then\n"%cidx)
-        _f.write("  python %s/scripts/packageSignal.py --cat %s --outputExt %s --massPoints %s %s\n"%(swd__,c,_opts['ext'],_opts['massPoints'],_opts['modeOpts']))
+        _f.write("  python %s/scripts/packageSignal.py --cat %s --outputExt %s --massPoints %s --outputPath %s %s\n"%(swd__,c,_opts['ext'],_opts['massPoints'],_opts['outputPath'],_opts['modeOpts']))
         _f.write("fi\n")
     # For single script
     elif _opts['mode'] == 'getEffAcc':
@@ -136,22 +136,24 @@ def writeSubFiles(_opts):
             p,c,f = _opts['procs'].split(",")[pidx], _opts['cats'].split(",")[cidx], _opts['flavours'].split(",")[fidx]
             _f = open("%s/%s_%g.sh"%(_jobdir,_executable,pcfidx),"w")
             writePreamble(_f)
-            _f.write("python %s/scripts/signalFit.py --inputWSDir %s --ext %s --proc %s --cat %s --flav %s --year %s --analysis %s --massPoints %s --scales \'%s\' --scalesCorr \'%s\' --scalesGlobal \'%s\' --smears \'%s\' %s\n"%(swd__,_opts['inputWSDir'],_opts['ext'],p,c,f,_opts['year'],_opts['analysis'],_opts['massPoints'],_opts['scales'],_opts['scalesCorr'],_opts['scalesGlobal'],_opts['smears'],_opts['modeOpts']))
+            _f.write("python %s/scripts/signalFit.py --inputWSDir %s --ext %s --proc %s --cat %s --flav %s --year %s --analysis %s --massPoints %s --scales \'%s\' --scalesCorr \'%s\' --scalesGlobal \'%s\' --smears \'%s\' --outputPath %s %s\n\n"%(swd__,_opts['inputWSDir'],_opts['ext'],p,c,f,_opts['year'],_opts['analysis'],_opts['massPoints'],_opts['scales'],_opts['scalesCorr'],_opts['scalesGlobal'],_opts['smears'],_opts['outputPath'],_opts['modeOpts']))
             _f.close()
             os.system("chmod 775 %s/%s_%g.sh"%(_jobdir,_executable,pcfidx))
 
     # FIXME: add flavs to signalFit file
     # For separate submission file per category
     elif( _opts['mode'] == "signalFit" )&( _opts['groupSignalFitJobsByCat'] ):
+      print(_opts['nCats'], _opts['cats'])
       for cidx in range(_opts['nCats']):
         c = _opts['cats'].split(",")[cidx]
+        print("Writing into %s/%s_%s.sh ..."%(_jobdir,_executable,c))
         _f = open("%s/%s_%s.sh"%(_jobdir,_executable,c),"w")
         writePreamble(_f)
         for pidx in range(_opts['nProcs']):
           p = _opts['procs'].split(",")[pidx]
           for fidx in range(_opts['nFlavs']):
             f = _opts['flavours'].split(",")[fidx]
-            _f.write("python %s/scripts/signalFit.py --inputWSDir %s --ext %s --proc %s --cat %s --flav %s --year %s --analysis %s --massPoints %s --scales \'%s\' --scalesCorr \'%s\' --scalesGlobal \'%s\' --smears \'%s\' %s\n\n"%(swd__,_opts['inputWSDir'],_opts['ext'],p,c,f,_opts['year'],_opts['analysis'],_opts['massPoints'],_opts['scales'],_opts['scalesCorr'],_opts['scalesGlobal'],_opts['smears'],_opts['modeOpts']))
+            _f.write("python %s/scripts/signalFit.py --inputWSDir %s --ext %s --proc %s --cat %s --flav %s --year %s --analysis %s --massPoints %s --scales \'%s\' --scalesCorr \'%s\' --scalesGlobal \'%s\' --smears \'%s\' --outputPath %s %s\n\n"%(swd__,_opts['inputWSDir'],_opts['ext'],p,c,f,_opts['year'],_opts['analysis'],_opts['massPoints'],_opts['scales'],_opts['scalesCorr'],_opts['scalesGlobal'],_opts['smears'],_opts['outputPath'],_opts['modeOpts']))
         _f.close()
         os.system("chmod 775 %s/%s_%s.sh"%(_jobdir,_executable,c))
 
@@ -179,7 +181,7 @@ def writeSubFiles(_opts):
         c = _opts['cats'].split(",")[cidx]
         _f = open("%s/%s_%s.sh"%(_jobdir,_executable,c),"w")
         writePreamble(_f)
-        _f.write("python %s/scripts/packageSignal.py --cat %s --outputExt %s --massPoints %s %s\n"%(swd__,c,_opts['ext'],_opts['massPoints'],_opts['modeOpts']))
+        _f.write("python %s/scripts/packageSignal.py --cat %s --outputExt %s --massPoints %s --outputPath %s %s\n"%(swd__,c,_opts['ext'],_opts['massPoints'],_opts['outputPath'],_opts['modeOpts']))
         _f.close()
         os.system("chmod 775 %s/%s_%s.sh"%(_jobdir,_executable,c))
 
@@ -201,7 +203,7 @@ def writeSubFiles(_opts):
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Function for submitting files to batch system
 def submitFiles(_opts):
-  _jobdir = "%s/outdir_%s/%s/jobs"%(swd__,_opts['ext'],_opts['mode'])
+  _jobdir = "%s/%s/outdir_%s/%s/jobs"%(swd__,_opts['outputPath'],_opts['ext'],_opts['mode'])
   # CONDOR
   if _opts['batch'] == "condor":
     _executable = "condor_%s_%s"%(_opts['mode'],_opts['ext'])

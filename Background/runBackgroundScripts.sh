@@ -160,40 +160,44 @@ OPT=" --isData 1"
 fi
 
 # Modify the fitting range if necessary
-# if [ "$CATS" = "VBF0" ]; then
-#   RANGELOW=" --mgg_low 105 --mgg_high 170"
-# elif [ "$CATS" = "VBF1" ]; then
-#   RANGELOW=" --mgg_low 100 --mgg_high 165"
-# elif [ "$CATS" = "VBF2" ]; then
-#   RANGELOW=" --mgg_low 95 --mgg_high 161"
-# elif [ "$CATS" = "VBF3" ]; then
-#   RANGELOW=" --mgg_low 95 --mgg_high 160"
-# else
-#   RANGELOW=""
-# fi
-if [ "$CATS" = "Incl0" ]; then
-  RANGELOW=" --mgg_low 107 --mgg_high 165 --midPow -5"
+if [ "$CATS" = "VBF0" ]; then
+  RANGE=" --mgg_low 105 --mgg_high 165"
+elif [ "$CATS" = "VBF1" ]; then
+  RANGE=" --mgg_low 97 --mgg_high 165"
+elif [ "$CATS" = "VBF2" ] || [ "$CATS" = "VBF3" ]; then
+  RANGE=" --mgg_low 95"
+elif [ "$CATS" = "ggH0" ]; then
+  RANGE=" --mgg_low 107 --mgg_high 172"
+elif [ "$CATS" = "ggH1" ]; then
+  RANGE=" --mgg_low 105 --mgg_high 170"
+elif [ "$CATS" = "ggH2" ]; then
+  RANGE=" --mgg_low 103 --mgg_high 168"
+elif [ "$CATS" = "ggH3" ]; then
+  RANGE=" --mgg_low 97 --mgg_high 165"
+elif [ "$CATS" = "Incl0" ]; then
+  RANGE=" --mgg_low 107 --mgg_high 170"
 elif [ "$CATS" = "Incl1" ]; then
-  RANGELOW=" --mgg_low 105 --mgg_high 165 --midPow -8"
+  RANGE=" --mgg_low 105 --mgg_high 165"
 elif [ "$CATS" = "Incl2" ]; then
-  RANGELOW=" --mgg_low 103 --mgg_high 165 --midPow -5"
+  RANGE=" --mgg_low 103 --mgg_high 165"
 elif [ "$CATS" = "Incl3" ]; then
-  RANGELOW=" --mgg_low 102 --mgg_high 165 --midPow -7"
+  RANGE=" --mgg_low 102 --mgg_high 165"
 elif [ "$CATS" = "Incl4" ]; then
-  RANGELOW=" --mgg_low 100 --mgg_high 162 --midPow -5"
+  RANGE=" --mgg_low 100 --mgg_high 162"
 elif [ "$CATS" = "Incl5" ]; then
-  RANGELOW=" --mgg_low 97 --mgg_high 160 --midPow -5"
+  RANGE=" --mgg_low 97 --mgg_high 160"
 elif [ "$CATS" = "Incl6" ]; then
-  RANGELOW=" --mgg_low 95 --mgg_high 160 --midPow -4"
+  RANGE=" --mgg_low 95 --mgg_high 160"
 elif [ "$CATS" = "Incl7" ]; then
-  RANGELOW=" --mgg_low 95 --mgg_high 160 --midPow -4"
+  RANGE=" --mgg_low 95 --mgg_high 160"
 else
-  RANGELOW=""
+  RANGE=""
 fi
-echo $RANGELOW
+echo $RANGE
 
-echo " ./bin/fTest -i $FILE --saveMultiPdf $OUTDIR/CMS-HGG_multipdf_$EXT_$CATS.root  -D $OUTDIR/bkgfTest$DATAEXT -f $CATS $RANGELOW $OPT --year $YEAR --catOffset $CATOFFSET"
-./bin/fTest -i $FILE --saveMultiPdf $OUTDIR/CMS-HGG_multipdf_$EXT_$CATS.root  -D $OUTDIR/bkgfTest$DATAEXT -f $CATS $RANGELOW $OPT --year $YEAR --catOffset $CATOFFSET
+FUNCLIST="PowerLawStepxGau" # PowerLawStepxGau,BernsteinStepxGau,LaurentStepxGau,ExponentialStepxGau,ExpModGauss
+echo " ./bin/fTest -i $FILE --saveMultiPdf $OUTDIR/CMS-HGG_multipdf_$EXT_$CATS.root -D $OUTDIR/bkgfTest$DATAEXT -f $CATS $RANGE $OPT --year $YEAR --catOffset $CATOFFSET --funclist $FUNCLIST --blindFit #--dochi2Fit"
+./bin/fTest -i $FILE --saveMultiPdf $OUTDIR/CMS-HGG_multipdf_$EXT_$CATS.root -D $OUTDIR/bkgfTest$DATAEXT -f $CATS $RANGE $OPT --year $YEAR --catOffset $CATOFFSET --funclist $FUNCLIST --blindFit #--dochi2Fit
 FTEST_RETURN=$?
 echo "fTest return code: $FTEST_RETURN"
 
@@ -201,7 +205,7 @@ OPT=""
 fi
 
 ####################################################
-################### BKGPLOTS ###################
+##################### BKGPLOTS #####################
 ####################################################
 
 if [ $BKGPLOTSONLY == 1 ]; then

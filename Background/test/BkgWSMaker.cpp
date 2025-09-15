@@ -204,7 +204,7 @@ void setPdfParams(RooAbsPdf* pdf, const map<string, double>& params) {
   delete pdfParams;
 }
 
-RooAbsPdf* getPdf(PdfModelBuilder &pdfsModel, string type, int order, string *typePrefix, const char* ext="", const string& cat=""){
+RooAbsPdf* getPdf(PdfModelBuilder &pdfsModel, string type, int order, string *typePrefix, const char* ext="", const string& cat="", bool doBlind=false){
   RooAbsPdf* pdf = nullptr;
   
   // First create the PDF instance
@@ -229,31 +229,31 @@ RooAbsPdf* getPdf(PdfModelBuilder &pdfsModel, string type, int order, string *ty
     *typePrefix = "lau";
   }
   else if (type=="BernsteinStepxGau") {
-    pdf = pdfsModel.getBernsteinStepxGau(Form("%s_gauxbern%d",ext,order),order);
+    pdf = pdfsModel.getBernsteinStepxGau(Form("%s_gauxbern%d",ext,order),order, false);
     *typePrefix = "bern";
   }
   else if (type=="ExponentialStepxGau") {
-    pdf = pdfsModel.getExponentialStepxGau(Form("%s_gauxexp%d",ext,order),order);
+    pdf = pdfsModel.getExponentialStepxGau(Form("%s_gauxexp%d",ext,order),order, false);
     *typePrefix = "exp";
   }
   else if (type=="PowerLawStepxGau") {
-    pdf = pdfsModel.getPowerLawStepxGau(Form("%s_gauxpow%d",ext,order),order);
+    pdf = pdfsModel.getPowerLawStepxGau(Form("%s_gauxpow%d",ext,order),order, false);
     *typePrefix = "pow";
   }
   else if (type=="LaurentStepxGau") {
-    pdf = pdfsModel.getLaurentStepxGau(Form("%s_gauxlau%d",ext,order),order);
+    pdf = pdfsModel.getLaurentStepxGau(Form("%s_gauxlau%d",ext,order),order, false);
     *typePrefix = "lau";
   }
   else if (type=="ExpModGauss"){
     if (order == 1) {
-      pdf = pdfsModel.getExpModGaussian(Form("%s_expmodgauss",ext));
+      pdf = pdfsModel.getExpModGaussian(Form("%s_expmodgauss",ext), false);
       *typePrefix = "expmodgauss";
     }
     else return NULL;
   }
   else if (type=="AsymGenGauss"){
     if (order == 1) {
-      pdf = pdfsModel.getAsymGenGaussian(Form("%s_asymgauss",ext));
+      pdf = pdfsModel.getAsymGenGaussian(Form("%s_asymgauss",ext), false);
       *typePrefix = "asymgauss";
     }
     else return NULL;
@@ -1595,6 +1595,10 @@ int main(int argc, char* argv[]){
   psMap.insert(pair<string, vector<int>>("VBF1", vector<int>{-4,-9}));
   psMap.insert(pair<string, vector<int>>("VBF2", vector<int>{-9,-8,-4}));
   psMap.insert(pair<string, vector<int>>("VBF3", vector<int>{-4,-5,-8}));
+  psMap.insert(pair<string, vector<int>>("ggH0", vector<int>{-4,-5}));
+  psMap.insert(pair<string, vector<int>>("ggH1", vector<int>{-10,-5,-4}));
+  psMap.insert(pair<string, vector<int>>("ggH2", vector<int>{-11,-10,-7,-6}));
+  psMap.insert(pair<string, vector<int>>("ggH3", vector<int>{-6,-9}));
 
   map<string, string> namingMapReverse;
   for (const auto& item : namingMap) {

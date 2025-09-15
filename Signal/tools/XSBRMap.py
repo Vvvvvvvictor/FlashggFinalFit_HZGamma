@@ -176,6 +176,7 @@ globalXSBRMap['fiducialAnalysis']['WplusH'] = {'mode':'constant','factor': 1}
 globalXSBRMap['fiducialAnalysis']['WminusH'] = {'mode':'constant','factor': 1}
 globalXSBRMap['fiducialAnalysis']['ZH'] = {'mode':'constant','factor': 1}
 globalXSBRMap['fiducialAnalysis']['ttH'] = {'mode':'constant','factor': 1}
+globalXSBRMap['fiducialAnalysis']['all'] = {'mode':'constant','factor': 1}
 
 globalXSBRMap['differentialAnalysis'] = od()
 globalXSBRMap['differentialAnalysis']['decay'] = {'mode':"hgg"}

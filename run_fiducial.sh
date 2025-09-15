@@ -28,31 +28,43 @@ wait_for_condor_jobs() {
 }
 
 clear
+clear
 source /cvmfs/cms.cern.ch/cmsset_default.sh
 cmsenv
-source setup.sh
+echo $(pwd)
+source $(pwd)/setup.sh
 mainPath=$(pwd)
-BackgroundWSPath="/eos/home-j/jiehan/root/input_finalfit/background"
-SignalNtuplePath="/eos/home-j/jiehan/root/fitting_signal"
-SignalWSPath="/eos/home-j/jiehan/root/input_finalfit/signal"
+inputpath="input_final"
+outputpath="output_final"
 
-SinalProcs=("ggH" "VBF" "WH" "ZH" "ttH") # "ggH" "VBF" "WplusH" "WminusH" "ZH" "ttH"
+BackgroundWSPath="${mainPath}/Inputdata/${inputpath}/background"
+BackgroundNtuplePath="${mainPath}/Inputdata/${inputpath}/fitting_bkg"
+SignalNtuplePath="${mainPath}/Inputdata/${inputpath}/fitting_signal"
+SignalWSPath="${mainPath}/Inputdata/${inputpath}/signal"
+# BackgroundWSPath="${mainPath}/Inputdata/outputs_rzou_run3_finalfit/Background_workspace"
+# BackgroundNtuplePath="${mainPath}/Inputdata/outputs_rzou_run3_finalfit/fitting_bkg"
+# SignalNtuplePath="${mainPath}/Inputdata/outputs_rzou_run3_finalfit/fitting_signal"
+# SignalWSPath="${mainPath}/Inputdata/outputs_rzou_run3_finalfit/Signal_workspace"
+
+# SignalProcs=("ggH" "VBF" "WH" "ZH" "ttH") # "ggH" "VBF" "WplusH" "WminusH" "ZH" "ttH"
+SignalProcs=("ggH" "VBF") # "ggH" "VBF"
 mass_points=("125")
 years=("2016preVFP" "2016postVFP" "2017" "2018" "2022preEE" "2022postEE" "2023preBPix" "2023postBPix") #"2016preVFP" "2016postVFP" "2017" "2018" "2022preEE" "2022postEE" "2023preBPix" "2023postBPix"
+# years=("2017") #"2016preVFP" "2016postVFP" "2017" "2018" "2022preEE" "2022postEE" "2023preBPix" "2023postBPix"
 
 ############################################
 # Tree2WS
 ############################################
-# cd ${mainPath}/Trees2WS
-# # make background ws
+cd ${mainPath}/Trees2WS
+# make background ws
 # mkdir -p ${BackgroundWSPath}
-# python trees2ws_data.py --inputConfig config_Run2.py --inputTreeFile /eos/home-j/jiehan/root/fitting_bkg/Data/output_Data_all.root --outputWSDir ${BackgroundWSPath}
+# python trees2ws_data.py --inputConfig config_Run2.py --inputTreeFile ${BackgroundNtuplePath}/Data/output_Data_all.root --outputWSDir ${BackgroundWSPath}
 
 # # make signal ws
 # mkdir -p ${SignalWSPath}
 # for year in "${years[@]}"; do
 #     for mass_point in "${mass_points[@]}"; do
-#         for proc in "${SinalProcs[@]}"; do
+#         for proc in "${SignalProcs[@]}"; do
 #             mkdir -p ${SignalWSPath}_${year}
 #             python trees2ws.py --inputConfig config_Run2.py --inputTreeFile ${SignalNtuplePath}/${proc}_M${mass_point}_${year}/output_${proc}_M${mass_point}.root --inputMass ${mass_point} --productionMode ${proc} --year ${year} --outputWSDir ${SignalWSPath}_${year} #--doSystematics
 #         done
@@ -60,7 +72,7 @@ years=("2016preVFP" "2016postVFP" "2017" "2018" "2022preEE" "2022postEE" "2023pr
 # done
 
 # for year in "${years[@]}"; do
-#     for proc in "${SinalProcs[@]}"; do
+#     for proc in "${SignalProcs[@]}"; do
 #         python mass_shifter.py --inputMass 125 --targetMass 120 --inputWSFile ${SignalWSPath}_${year}/output_${proc}_M125_pythia8_${proc}.root
 #         python mass_shifter.py --inputMass 125 --targetMass 130 --inputWSFile ${SignalWSPath}_${year}/output_${proc}_M125_pythia8_${proc}.root
 #     done
@@ -162,10 +174,10 @@ python RunBackgroundScripts.py --inputConfig config_fiducial_run2.py --mode fTes
 # # Bias Study
 # cd Checks/
 # # Only to make directories
-# for cat in "VBF0" "VBF1" "VBF2" "VBF3"; do # "VBF0" "VBF1" "VBF2" "VBF3"
-#     # python RunBiasStudy.py -j $cat -d ../Datacard_${cat}_mu_fiducial.root -t -n 1000 --dryRun
-#     # python RunBiasStudy.py -j $cat -d ../Datacard_${cat}_mu_fiducial.root -f -n 1000 -c "--cminDefaultMinimizerStrategy 0 --X-rtd MINIMIZER_freezeDisassociatedParams --X-rtd MINIMIZER_multiMin_hideConstants --X-rtd MINIMIZER_multiMin_maskConstraints   --rMin -100 --rMax 100  --freezeParameters MH" --dryRun
-#     # python RunBiasStudy.py -j $cat -d ../Datacard_${cat}_mu_fiducial.root -f -n 100 -c "--alignEdges 1 --setParameterRanges CMS_hgg_mass=110,130 --cminDefaultMinimizerStrategy 0 --X-rtd MINIMIZER_freezeDisassociatedParams --X-rtd MINIMIZER_multiMin_hideConstants --X-rtd MINIMIZER_multiMin_maskConstraints --X-rtd MINIMIZER_multiMin_maskChannels=2"
+# for cat in "Incl0"; do # "VBF0" "VBF1" "VBF2" "VBF3"
+#     python RunBiasStudy.py -j $cat -d ../Datacard_${cat}_mu_fiducial.root -t -n 1000 --dryRun
+#     python RunBiasStudy.py -j $cat -d ../Datacard_${cat}_mu_fiducial.root -f -n 1000 -c "--cminDefaultMinimizerStrategy 0 --X-rtd MINIMIZER_freezeDisassociatedParams --X-rtd MINIMIZER_multiMin_hideConstants --X-rtd MINIMIZER_multiMin_maskConstraints   --rMin -100 --rMax 100  --freezeParameters MH" --dryRun
+#     python RunBiasStudy.py -j $cat -d ../Datacard_${cat}_mu_fiducial.root -f -n 100 -c "--alignEdges 1 --setParameterRanges CMS_hgg_mass=110,130 --cminDefaultMinimizerStrategy 0 --X-rtd MINIMIZER_freezeDisassociatedParams --X-rtd MINIMIZER_multiMin_hideConstants --X-rtd MINIMIZER_multiMin_maskConstraints --X-rtd MINIMIZER_multiMin_maskChannels=2"
 #     python RunBiasStudy.py -j $cat -d ../Datacard_${cat}_mu_fiducial.root -p --gaussianFit
 # done
 
@@ -328,18 +340,18 @@ commands=(
 )
 
 # 遍历命令列表，依次执行每个命令
-for cmd in "${commands[@]}"; do
-    echo "Executing command: $cmd"
-    # 执行命令
-    eval "$cmd"
-    # 检查命令执行状态
-    if [ $? -eq 0 ]; then
-        echo "Command executed successfully"
-    else
-        echo "Error executing command: $cmd"
-        # 可选择在错误发生时终止执行
-        # exit 1
-    fi
-done
+# for cmd in "${commands[@]}"; do
+#     echo "Executing command: $cmd"
+#     # 执行命令
+#     eval "$cmd"
+#     # 检查命令执行状态
+#     if [ $? -eq 0 ]; then
+#         echo "Command executed successfully"
+#     else
+#         echo "Error executing command: $cmd"
+#         # 可选择在错误发生时终止执行
+#         # exit 1
+#     fi
+# done
 
 # # 在此处添加代码以等待 Condor 作业完成#     eval "$cmd"n#     # 检查命令执行状态h#     if [ $? -eq 0 ]; then #         echo "Command executed successfully"e#     else #         echo "Error executing command: $cmd" #         # 可选择在错误发生时终止执行 #         # exit 1s#     fis# doneo echo "All commands executed"

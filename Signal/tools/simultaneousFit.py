@@ -284,7 +284,7 @@ class SimultaneousFit:
       # Create coeff for polynominal of order MHPolyOrder: y = a+bx+cx^2+...
       for po in range(0,self.MHPolyOrder+1):
         self.Vars['%s_p%g'%(k,po)] = ROOT.RooRealVar("%s_p%g"%(k,po),"%s_p%g"%(k,po),pLUT['DCB']["%s_p%s"%(f,po)][0],pLUT['DCB']["%s_p%s"%(f,po)][1],pLUT['DCB']["%s_p%s"%(f,po)][2])
-	self.Varlists[k].add( self.Vars['%s_p%g'%(k,po)] ) 
+        self.Varlists[k].add( self.Vars['%s_p%g'%(k,po)] ) 
       # Define polynominal
       self.Polynomials[k] = ROOT.RooPolyVar(k,k,self.dMH,self.Varlists[k])
     # Mean function
@@ -304,18 +304,18 @@ class SimultaneousFit:
     for g in range(0,nGaussians):
       # Define polynominal functions for mean and sigma (in MH)
       for f in ['dm','sigma']: 
-	k = "%s_g%g"%(f,g)
-	self.Varlists[k] = ROOT.RooArgList("%s_coeffs"%k)
-	# Create coeff for polynominal of order MHPolyOrder: y = a+bx+cx^2+...
-	for po in range(0,self.MHPolyOrder+1):
+        k = "%s_g%g"%(f,g)
+        self.Varlists[k] = ROOT.RooArgList("%s_coeffs"%k)
+        # Create coeff for polynominal of order MHPolyOrder: y = a+bx+cx^2+...
+        for po in range(0,self.MHPolyOrder+1):
           # p0 value of sigma is function of g (creates gaussians of increasing width)
           if(f == "sigma")&(po==0): 
             self.Vars['%s_p%g'%(k,po)] = ROOT.RooRealVar("%s_p%g"%(k,po),"%s_p%g"%(k,po),(g+1)*1.0,pLUT['Gaussian']["%s_p%s"%(f,po)][1],pLUT['Gaussian']["%s_p%s"%(f,po)][2])
-	  else:
+          else:
             self.Vars['%s_p%g'%(k,po)] = ROOT.RooRealVar("%s_p%g"%(k,po),"%s_p%g"%(k,po),pLUT['Gaussian']["%s_p%s"%(f,po)][0],pLUT['Gaussian']["%s_p%s"%(f,po)][1],pLUT['Gaussian']["%s_p%s"%(f,po)][2])
-	  self.Varlists[k].add( self.Vars['%s_p%g'%(k,po)] ) 
-	# Define polynominal
-	self.Polynomials[k] = ROOT.RooPolyVar(k,k,self.dMH,self.Varlists[k])
+          self.Varlists[k].add( self.Vars['%s_p%g'%(k,po)] ) 
+        # Define polynominal
+        self.Polynomials[k] = ROOT.RooPolyVar(k,k,self.dMH,self.Varlists[k])
       # Mean function
       self.Polynomials['mean_g%g'%g] = ROOT.RooFormulaVar("mean_g%g"%g,"mean_g%g"%g,"(@0+@1)",ROOT.RooArgList(self.MH,self.Polynomials['dm_g%g'%g]))
       # Build Gaussian
@@ -323,18 +323,18 @@ class SimultaneousFit:
 
       # Relative fractions: also polynomials of order MHPolyOrder (define up to n=nGaussians-1)
       if g < nGaussians-1:
-	self.Varlists['frac_g%g'%g] = ROOT.RooArgList("frac_g%g_coeffs"%g)
-	for po in range(0,self.MHPolyOrder+1):
-	  if po == 0:
-	    self.Vars['frac_g%g_p%g'%(g,po)] = ROOT.RooRealVar("frac_g%g_p%g"%(g,po),"frac_g%g_p%g"%(g,po),0.5-0.05*g,pLUT['FracGaussian']['p%g'%po][1],pLUT['FracGaussian']['p%g'%po][2])
-	  else:
-	    self.Vars['frac_g%g_p%g'%(g,po)] = ROOT.RooRealVar("frac_g%g_p%g"%(g,po),"frac_g%g_p%g"%(g,po),pLUT['FracGaussian']['p%g'%po][0],pLUT['FracGaussian']['p%g'%po][1],pLUT['FracGaussian']['p%g'%po][2])
-	  self.Varlists['frac_g%g'%g].add( self.Vars['frac_g%g_p%g'%(g,po)] )
-	# Define Polynomial
-	self.Polynomials['frac_g%g'%g] = ROOT.RooPolyVar("frac_g%g"%g,"frac_g%g"%g,self.dMH,self.Varlists['frac_g%g'%g])
-	# Constrain fraction to not be above 1 or below 0
-	self.Polynomials['frac_g%g_constrained'%g] = ROOT.RooFormulaVar('frac_g%g_constrained'%g,'frac_g%g_constrained'%g,"(@0>0)*(@0<1)*@0+ (@0>1.0)*0.9999",ROOT.RooArgList(self.Polynomials['frac_g%g'%g]))
-	self.Coeffs['frac_g%g_constrained'%g] = self.Polynomials['frac_g%g_constrained'%g]
+        self.Varlists['frac_g%g'%g] = ROOT.RooArgList("frac_g%g_coeffs"%g)
+        for po in range(0,self.MHPolyOrder+1):
+          if po == 0:
+            self.Vars['frac_g%g_p%g'%(g,po)] = ROOT.RooRealVar("frac_g%g_p%g"%(g,po),"frac_g%g_p%g"%(g,po),0.5-0.05*g,pLUT['FracGaussian']['p%g'%po][1],pLUT['FracGaussian']['p%g'%po][2])
+          else:
+            self.Vars['frac_g%g_p%g'%(g,po)] = ROOT.RooRealVar("frac_g%g_p%g"%(g,po),"frac_g%g_p%g"%(g,po),pLUT['FracGaussian']['p%g'%po][0],pLUT['FracGaussian']['p%g'%po][1],pLUT['FracGaussian']['p%g'%po][2])
+          self.Varlists['frac_g%g'%g].add( self.Vars['frac_g%g_p%g'%(g,po)] )
+        # Define Polynomial
+        self.Polynomials['frac_g%g'%g] = ROOT.RooPolyVar("frac_g%g"%g,"frac_g%g"%g,self.dMH,self.Varlists['frac_g%g'%g])
+        # Constrain fraction to not be above 1 or below 0
+        self.Polynomials['frac_g%g_constrained'%g] = ROOT.RooFormulaVar('frac_g%g_constrained'%g,'frac_g%g_constrained'%g,"(@0>0)*(@0<1)*@0+ (@0>1.0)*0.9999",ROOT.RooArgList(self.Polynomials['frac_g%g'%g]))
+        self.Coeffs['frac_g%g_constrained'%g] = self.Polynomials['frac_g%g_constrained'%g]
     # End of loop over n Gaussians
     
     # Define total PDF

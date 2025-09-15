@@ -17,10 +17,11 @@ def get_options():
   parser.add_option('--flavs', dest='flavs', default='all', help="Comma separated list of flavors to include. all = sum of all flavors")
   parser.add_option('--loadCatWeights', dest='loadCatWeights', default='', help="Load S/S+B weights for analysis categories (path to weights json file)")
   parser.add_option('--ext', dest='ext', default='test', help="Extension: defines output dir where signal models are saved")
+  parser.add_option('--outputPath', dest='outputPath', default='.', help="Output path")
   parser.add_option("--xvar", dest="xvar", default='CMS_hgg_mass:m_{ll#gamma}:GeV', help="x-var (name:title:units)")
   parser.add_option("--mass", dest="mass", default='125', help="Mass of datasets")
   parser.add_option("--MH", dest="MH", default='125', help="Higgs mass (for pdf)")
-  parser.add_option("--nBins", dest="nBins", default=160, type='int', help="Number of bins")
+  parser.add_option("--nBins", dest="nBins", default=170, type='int', help="Number of bins")
   parser.add_option("--pdf_nBins", dest="pdf_nBins", default=3200, type='int', help="Number of bins")
   parser.add_option("--threshold", dest="threshold", default=0.001, type='float', help="Threshold to prune process from plot default = 0.1% of total category norm")
   parser.add_option("--translateCats", dest="translateCats", default=None, help="JSON to store cat translations")
@@ -37,7 +38,8 @@ ROOT.gStyle.SetOptStat(0)
 inputFiles = od()
 citr = 0
 if opt.cats in ['all','wall']:
-  fs = glob.glob("%s/outdir_%s/CMS-HGG_sigfit_%s_*.root"%(swd__,opt.ext,opt.ext))
+  fs = glob.glob("%s/%s/outdir_%s/CMS-HGG_sigfit_%s_*.root"%(swd__,opt.outputPath,opt.ext,opt.ext))
+  # print(fs)
   for f in fs:
     cat = re.sub(".root","",f.split("/")[-1].split("_%s_"%opt.ext)[-1])
     inputFiles[cat] = f
@@ -50,7 +52,8 @@ if opt.cats in ['all','wall']:
     citr += 1
 else:
   for cat in opt.cats.split(","):
-    f = "%s/outdir_%s/CMS-HGG_sigfit_%s_%s.root"%(swd__,opt.ext,opt.ext,cat)
+    f = "%s/%s/outdir_%s/CMS-HGG_sigfit_%s_%s.root"%(swd__,opt.outputPath,opt.ext,opt.ext,cat)
+    # print(f)
     inputFiles[cat] = f
     if citr == 0:
       w = ROOT.TFile(f).Get("wsig_13TeV")
@@ -89,10 +92,10 @@ for cat,f in inputFiles.iteritems():
     procs_list = []
     flavs_list = []
     
+    allNorms = w.allFunctions().selectByName("*%s*normThisLumi"%year)
     if opt.procs == 'all':
-      allNorms = w.allFunctions().selectByName("*%s*normThisLumi"%year)
       for norm in rooiter(allNorms):
-        proc = norm.GetName().split("%s_"%outputWSObjectTitle__)[-1].split("_%s"%year)[0]
+        proc = norm.GetName().split("_")[1]
         if proc not in procs_list:
           procs_list.append(proc)
     else:
@@ -110,37 +113,49 @@ for cat,f in inputFiles.iteritems():
     # Common loop for all cases
     for proc in procs_list:
       for flav in flavs_list:
-        k = "%s_%s_%s"%(proc, year, flav)
-        _id = "%s_%s_%s_%s_%s"%(proc, year, cat, flav, sqrts__)
-        norm_func = w.function("%s_%s_normThisLumi"%(outputWSObjectTitle__, _id))
+        k = "dcb_%s_%s_%s"%(proc, year, flav)
+        _id = "dcb_%s_%s_%s_%s_%s"%(proc, year, cat, flav, sqrts__)
+        print("k = %s, _id = %s"%(k, _id))
+        norm_func = w.function("%s_normThisLumi"%(_id))
         if norm_func:  # Check if function exists
           norms[k] = norm_func
 
   # Iterate over norms: extract total category norm
   catNorm = 0
   for k, norm in norms.iteritems():
-    proc, year, flav = k.split("_")
-    _id = "%s_%s_%s_%s_%s"%(proc, year, cat, flav, sqrts__)
+    proc = k.split("_")[1]
+    year = k.split("_")[2]
+    flav = k.split("_")[3]
+    _id = "dcb_%s_%s_%s_%s_%s"%(proc, year, cat, flav, sqrts__)
     w.var("IntLumi").setVal(lumiScaleFactor*lumiMap[year])
     catNorm += norm.getVal()
+    print("k = %s, norm = %f" % (k,norm.getVal()))
+  print("catNorm = %f" % catNorm)
+  if catNorm == 0: continue
 
   # Iterate over norms and extract data sets + pdfs
   for k, norm in norms.iteritems():
-    proc, year , flav = k.split("_")
-    _id = "%s_%s_%s_%s_%s"%(proc, year, cat, flav, sqrts__)
+    proc = k.split("_")[1]
+    year = k.split("_")[2]
+    flav = k.split("_")[3]
+    _id = "dcb_%s_%s_%s_%s_%s"%(proc, year, cat, flav, sqrts__)
     w.var("IntLumi").setVal(lumiScaleFactor*lumiMap[year])
+    # print("k = %s, proc = %s, year = %s, flav = %s, _id = %s"%(k, proc, year, flav, _id))
 
     # Prune
     nval = norm.getVal()
+    # print("nval = %f" % nval)
     if nval < opt.threshold*catNorm: continue # Prune processes which contribute less that threshold of signal mod
 
     # Make empty copy of dataset
-    d = w.data("sig_mass_m%s_%s"%(opt.mass,_id))
+    d = w.data("sig_mass_m%s_%s"%(opt.mass,_id.split("dcb_")[-1]))
     d_rwgt = d.emptyClone(_id)
     
     # Calc norm factor
     if d.sumEntries() == 0: nf = 0
     else: nf = nval/d.sumEntries()
+    # print("nf = %f, nval = %f, d.sumEntries() = %f" % (nf,nval,d.sumEntries()))
+
     # Fill dataset with correct normalisation + reweight if using cat weights
     for i in range(d.numEntries()):
       p = d.get(i)
@@ -150,30 +165,40 @@ for cat,f in inputFiles.iteritems():
     data_rwgt[_id] = d_rwgt
 
     # Extract pdf and create histogram
-    pdf = w.pdf("extend%s_%sThisLumi"%(outputWSObjectTitle__,_id)) 
+    pdf = w.pdf("extend%sThisLumi"%(_id)) 
+    # print("extend%sThisLumi"%(_id))
     hpdfs[_id] = pdf.createHistogram("h_pdf_%s"%_id,xvar,ROOT.RooFit.Binning(opt.pdf_nBins))
-    hpdfs[_id].Scale(wcat*float(opt.nBins)/320) # FIXME: hardcoded 320
+    # print("wcat = %f, float(opt.nBins) = %f" % (wcat,float(opt.nBins)))
+    # hpdfs[_id].Scale(wcat*float(opt.nBins)/float(opt.pdf_nBins)) # FIXME: hardcoded 320
+    hpdfs[_id].Scale(wcat*float(opt.nBins)/340) # FIXME: hardcoded 340
 
   # Fill total histograms: data, per-year pdfs and pdfs
   for _id,d in data_rwgt.iteritems(): d.fillHistogram(hists['data'],alist)
+  print("data yield: %f" % hists['data'].Integral())
 
   # Sum pdf histograms
   for _id,p in hpdfs.iteritems():
+    print("hpdfs.iteritems(): _id = %s" % (_id))
     if 'pdf' not in hists: 
       hists['pdf'] = p.Clone("h_pdf")
       hists['pdf'].Reset()
     # Fill
     hists['pdf'] += p
+  print("yield total: %f " % (hists['pdf'].Integral()*float(opt.nBins)/float(opt.pdf_nBins)))
 
   # Per-year pdf histograms
   if len(opt.years.split(",")) > 1:
     for year in opt.years.split(","):
+      # print(year)
       if 'pdf_%s'%year not in hists:
-	hists['pdf_%s'%year] = hists['pdf'].Clone()
-	hists['pdf_%s'%year].Reset()
+        hists['pdf_%s'%year] = hists['pdf'].Clone()
+        hists['pdf_%s'%year].Reset()
       # Fill
       for _id,p in hpdfs.iteritems():
-	if year in _id: hists['pdf_%s'%year] += p
+        if year in _id: 
+          # print("_id = %s" % _id)
+          hists['pdf_%s'%year] += p
+      # print("yield %s: %f" % (year,hists['pdf_%s' % year].Integral()))
    
   # Garbage removal
   for d in data_rwgt.itervalues(): d.Delete()
@@ -182,5 +207,5 @@ for cat,f in inputFiles.iteritems():
   fin.Close()
 
 # Make plot
-if not os.path.isdir("%s/outdir_%s/Plots"%(swd__,opt.ext)): os.system("mkdir %s/outdir_%s/Plots"%(swd__,opt.ext))
-plotSignalModel(hists,opt,_outdir="%s/outdir_%s/Plots"%(swd__,opt.ext))
+if not os.path.isdir("%s/%s/outdir_%s/Plots"%(swd__,opt.outputPath,opt.ext)): os.system("mkdir %s/%s/outdir_%s/Plots"%(swd__,opt.outputPath,opt.ext))
+plotSignalModel(hists,opt,_outdir="%s/%s/outdir_%s/Plots"%(swd__,opt.outputPath,opt.ext))

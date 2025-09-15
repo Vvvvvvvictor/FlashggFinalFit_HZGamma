@@ -58,7 +58,7 @@ def add_vars_to_workspace(_ws=None,_data=None,_stxsVar=None):
     if var in ['type','cat',_stxsVar]: continue
     if var == "CMS_hgg_mass": 
       _vars[var] = ROOT.RooRealVar(var,var,125.,95.,180.)
-      _vars[var].setBins(160)
+      _vars[var].setBins(340)
     elif var == "dZ": 
       _vars[var] = ROOT.RooRealVar(var,var,0.,-20.,20.)
       _vars[var].setBins(40)
@@ -274,7 +274,7 @@ for stxsId in data[stxsVar].unique():
       outputWSDir = opt.outputWSDir
     else:
       outputWSDir = "/".join(opt.inputTreeFile.split("/")[:-1])+"/ws_%s"%dataToProc(opt.productionMode)
-    if not os.path.exists(outputWSDir): os.system("mkdir %s"%outputWSDir)
+    if not os.path.exists(outputWSDir): os.system("mkdir -p %s"%outputWSDir)
     outputWSFile = outputWSDir+"/"+re.sub(".root","_pythia8_%s.root"%dataToProc(opt.productionMode),opt.inputTreeFile.split("/")[-1])
     print " --> Creating output workspace: (%s)"%outputWSFile
     
