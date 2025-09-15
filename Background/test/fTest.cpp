@@ -590,15 +590,6 @@ void runFit(RooAbsPdf *pdf, RooAbsPdf *pdf_SB, RooDataSet *data, RooDataSet *dat
   *NLL = minnll;
 }
 
-<<<<<<< HEAD
-void runFit(RooAbsPdf *pdf, RooDataHist *data, double *NLL, int *stat_t, int MaxTries, bool doBlind=false, const std::string& cat = "", const std::string& typePrefix = "", int order = -1, int nBins = -1, const RooAbsPdf* pdfToSave = nullptr) {
-  std::cout << "[INFO] Running fit with Chi2 fit" << endl;
-  // Initialize variables
-  int ntries = 0;
-  int stat = 1;
-  double minnll = 10e8;
-  RooArgSet *params_test = pdf->getParameters((const RooArgSet*)(0));
-=======
 // void runFit(RooAbsPdf *pdf, RooDataHist *data, double *NLL, int *stat_t, int MaxTries, bool doBlind=false, const std::string& cat = "", const std::string& typePrefix = "", int order = -1, int nBins = -1, const RooAbsPdf* pdfToSave = nullptr) {
 //   std::cout << "[INFO] Perform sideband fit for RooDataHist" << std::endl;
 //   // Initialize variables
@@ -606,7 +597,6 @@ void runFit(RooAbsPdf *pdf, RooDataHist *data, double *NLL, int *stat_t, int Max
 //   int stat = 1;
 //   double minnll = 10e8;
 //   RooArgSet *params_test = pdf->getParameters((const RooArgSet*)(0));
->>>>>>> 5c5dbe85f2883b422d0da323419eb8fa12007156
   
 //   // chi2 calculation variables
 //   double chi2_before = std::numeric_limits<double>::max();
@@ -1512,12 +1502,8 @@ bool SpurialSignalTest(RooRealVar *input_mass, TString cat, TString funcType, in
 
   TString frHistName = Form("data_full_%s_%s", runPeriod.Data(), cat.Data());
   TString sbHistName = Form("data_%s_%s", runPeriod.Data(), cat.Data());
-<<<<<<< HEAD
-  TH1F* hsb = loadHistogram(fbkg, sbHistName, Form("%s_clone", sbHistName.Data()));
-=======
   TH1F* hfr = loadHistogram(fdata, frHistName, Form("%s_clone", frHistName.Data()));
   TH1F* hsb = loadHistogram(fdata, sbHistName, Form("%s_clone", sbHistName.Data()));
->>>>>>> 5c5dbe85f2883b422d0da323419eb8fa12007156
   
   if (!hsb) {
     std::cerr << "[ERROR] Data templates not found" << std::endl;
@@ -1911,12 +1897,7 @@ int main(int argc, char* argv[]){
   vector<string> flashggCats_;
   bool isData_ =0;
   double mgg_low, mgg_high;
-<<<<<<< HEAD
-  int nBinsForMass;
-  int midPow;
-=======
   int nBinsForMass;  
->>>>>>> 5c5dbe85f2883b422d0da323419eb8fa12007156
 
   po::options_description desc("Allowed options");
   desc.add_options()
@@ -2214,12 +2195,6 @@ int main(int argc, char* argv[]){
       string typePrefix;
       // while (prob<upperEnvThreshold){
 			while (prob<upperEnvThreshold && order < 7){
-<<<<<<< HEAD
-        // RooAbsPdf *bkgPdf = getPdf(pdfsModel,*funcType,order,&typePrefix,Form("ftest_pdf_%d_%s",(cat+catOffset),ext.c_str()), catname); // OLD CALL
-        // Call getPdf, passing the midPow value from command line arguments
-        RooAbsPdf *bkgPdf = getPdf(pdfsModel,*funcType,order,&typePrefix,Form("ftest_pdf_%d_%s",(cat+catOffset),ext.c_str()), catname, midPow); // NEW CALL
-        if (!bkgPdf){
-=======
         RooAbsPdf *bkgPdf = getPdf(pdfsModel,*funcType,order,&typePrefix,Form("ftest_pdf_%d_%s",(cat+catOffset),ext.c_str()), catname, /*sideband*/false);
         RooAbsPdf *bkgPdf_SB = getPdf(pdfsModel_SB,*funcType,order,&typePrefix,Form("ftest_pdf_%d_%s",(cat+catOffset),ext.c_str()), catname, true);
         cout << "[INFO] Try to find " << *funcType << " " << order << " " << bkgPdf << endl;
@@ -2229,7 +2204,6 @@ int main(int argc, char* argv[]){
         // } 
         // bkgPdf->Print("v");bkgPdf_SB->Print("v");
         if ((!bkgPdf) || (!bkgPdf_SB)){
->>>>>>> 5c5dbe85f2883b422d0da323419eb8fa12007156
           // assume this order is not allowed
           cout << "[INFO] bkg pdf is not exist " << endl;
           order++;
@@ -2305,15 +2279,6 @@ int main(int argc, char* argv[]){
 				std::cout << "[INFO] Upper end Threshold for highest order function " << upperEnvThreshold <<std::endl;
 
 				while (prob<upperEnvThreshold && order < 7){
-<<<<<<< HEAD
-					// RooAbsPdf *bkgPdf = getPdf(pdfsModel,*funcType,order,&typePrefix,Form("env_pdf_%d_%s",(cat+catOffset),ext.c_str()), catname); // OLD CALL
-          // Call getPdf, passing the midPow value from command line arguments
-          RooAbsPdf *bkgPdf = getPdf(pdfsModel,*funcType,order,&typePrefix,Form("env_pdf_%d_%s",(cat+catOffset),ext.c_str()), catname, midPow); // NEW CALL
-          cout << "[INFO] get pdf called " << *funcType << " " << order << " " << bkgPdf << endl;
-					if (!bkgPdf ){
-						// assume this order is not allowed
-						order++;
-=======
 					RooAbsPdf *bkgPdf = getPdf(pdfsModel,*funcType,order,&typePrefix,Form("env_pdf_%d_%s",(cat+catOffset),ext.c_str()), catname, /*sideband*/false);
           RooAbsPdf *bkgPdf_SB = getPdf(pdfsModel_SB,*funcType,order,&typePrefix,Form("env_pdf_%d_%s",(cat+catOffset),ext.c_str()), catname, true);
           cout << "[INFO] Try to find " << *funcType << " " << order << " " << bkgPdf << endl;
@@ -2325,7 +2290,6 @@ int main(int argc, char* argv[]){
           // assume this order is not allowed
           cout << "[INFO] bkg pdf is not exist " << endl;
           order++;
->>>>>>> 5c5dbe85f2883b422d0da323419eb8fa12007156
 					}
 					else {
             fprintf(dfile,"%s %d\n",funcType->c_str(),order);

@@ -163,8 +163,8 @@ RooAbsPdf *PdfModelBuilder::getPowerLawStepxGau(string prefix, int order, bool d
   int xmax = obs_var->getMax();
 
   for (int i = 0; i < order; i += 2) {
-    string pName = Form("%s_p%d", prefix.c_str(), i + 1, order);
-    string cpName = Form("%s_cp%d", prefix.c_str(), i + 1, order);
+    string pName = Form("%s_p%d", prefix.c_str(), i + 1);
+    string cpName = Form("%s_cp%d", prefix.c_str(), i + 1);
     RooRealVar *p = new RooRealVar(pName.c_str(), pName.c_str(), -4.0-i, -15.0, 0.0);
     RooRealVar *cp = new RooRealVar(cpName.c_str(), cpName.c_str(), 0.1 * (i + 1), 0., 1.);
     if ((const_cp1) && (i == 0)) cp->setConstant(true);
@@ -386,7 +386,7 @@ RooAbsPdf *PdfModelBuilder::getLaurentStepxGau(string prefix, int order, bool do
 
 RooAbsPdf *PdfModelBuilder::getLaurentStepxGau(string prefix, int order, vector<int> ps){
   if (order > 7) return NULL;
-  if (ps.size() != order) return NULL;
+  if (ps.size() != static_cast<size_t>(order)) return NULL;
   RooRealVar *mean = new RooRealVar(Form("%s_mean", prefix.c_str()), Form("%s_mean", prefix.c_str()), 0.);
   RooRealVar *sigma = new RooRealVar(Form("%s_sigma", prefix.c_str()), Form("%s_sigma", prefix.c_str()), 5., 1., 10.);
   RooRealVar *step = new RooRealVar(Form("%s_step", prefix.c_str()), Form("%s_step", prefix.c_str()), 101., 95., 115.);

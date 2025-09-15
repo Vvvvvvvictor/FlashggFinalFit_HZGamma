@@ -2,7 +2,7 @@ import os
 
 # Paths and directory
 cmsswbase__ = os.environ['CMSSW_BASE']
-cwd__ = os.environ['CMSSW_BASE']+"/src/FlashggFinalFit_HZGamma"
+cwd__ = os.environ['CMSSW_BASE']+"/src/flashggFinalFit"
 swd__ = "%s/Signal"%cwd__
 bwd__ = "%s/Background"%cwd__
 dwd__ = "%s/Datacard"%cwd__

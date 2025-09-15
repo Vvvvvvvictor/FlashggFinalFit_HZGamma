@@ -28,7 +28,6 @@ wait_for_condor_jobs() {
 }
 
 clear
-clear
 source /cvmfs/cms.cern.ch/cmsset_default.sh
 cmsenv
 echo $(pwd)
@@ -46,17 +45,19 @@ SignalWSPath="${mainPath}/Inputdata/${inputpath}/signal"
 # SignalNtuplePath="${mainPath}/Inputdata/outputs_rzou_run3_finalfit/fitting_signal"
 # SignalWSPath="${mainPath}/Inputdata/outputs_rzou_run3_finalfit/Signal_workspace"
 
-# SignalProcs=("ggH" "VBF" "WH" "ZH" "ttH") # "ggH" "VBF" "WplusH" "WminusH" "ZH" "ttH"
-SignalProcs=("ggH" "VBF") # "ggH" "VBF"
+SignalProcs=("ggH" "VBF" "WplusH" "WminusH" "ZH" "ttH") # "ggH" "VBF" "WplusH" "WminusH" "ZH" "ttH"
+# SignalProcs=("ggH" "VBF") # "ggH" "VBF"
 mass_points=("125")
 years=("2016preVFP" "2016postVFP" "2017" "2018" "2022preEE" "2022postEE" "2023preBPix" "2023postBPix") #"2016preVFP" "2016postVFP" "2017" "2018" "2022preEE" "2022postEE" "2023preBPix" "2023postBPix"
-# years=("2017") #"2016preVFP" "2016postVFP" "2017" "2018" "2022preEE" "2022postEE" "2023preBPix" "2023postBPix"
+run2_years=("2016preVFP" "2016postVFP" "2017" "2018")
+run3_years=("2022preEE" "2022postEE" "2023preBPix" "2023postBPix")
 
 ############################################
 # Tree2WS
 ############################################
+echo "Start Tree2WS!!!!!!!!"
 cd ${mainPath}/Trees2WS
-# make background ws
+# # make background ws
 # mkdir -p ${BackgroundWSPath}
 # python trees2ws_data.py --inputConfig config_Run2.py --inputTreeFile ${BackgroundNtuplePath}/Data/output_Data_all.root --outputWSDir ${BackgroundWSPath}
 
@@ -64,9 +65,11 @@ cd ${mainPath}/Trees2WS
 # mkdir -p ${SignalWSPath}
 # for year in "${years[@]}"; do
 #     for mass_point in "${mass_points[@]}"; do
+#         config_file="config_Run3.py"
+#         [[ " ${run2_years[@]} " =~ " ${year} " ]] && config_file="config_Run2.py"
 #         for proc in "${SignalProcs[@]}"; do
 #             mkdir -p ${SignalWSPath}_${year}
-#             python trees2ws.py --inputConfig config_Run2.py --inputTreeFile ${SignalNtuplePath}/${proc}_M${mass_point}_${year}/output_${proc}_M${mass_point}.root --inputMass ${mass_point} --productionMode ${proc} --year ${year} --outputWSDir ${SignalWSPath}_${year} #--doSystematics
+#             python trees2ws.py --inputConfig ${config_file} --inputTreeFile ${SignalNtuplePath}/${proc}_M${mass_point}_${year}/output_${proc}_M${mass_point}.root --inputMass ${mass_point} --productionMode ${proc} --year ${year} --outputWSDir ${SignalWSPath}_${year} --doSystematics
 #         done
 #     done
 # done
@@ -81,6 +84,7 @@ cd ${mainPath}/Trees2WS
 #########################################
 # Signal
 #########################################
+echo "Start Signal Fitting!!!!!!!!"
 cd ${mainPath}/Signal
 # # fTest
 # for year in "${years[@]}"; do
@@ -95,30 +99,32 @@ for year in "${years[@]}"; do
     python RunSignalScripts.py --inputConfig config_${year}_fiducial.py --mode signalFit --groupSignalFitJobsByCat --modeOpts "--doPlots --beamspotWidthData 3.5 --beamspotWidthMC 3.7 --useDCB --skipSystematics"
 done
 
+# ggH0,ggH1,ggH2,ggH3,VBF0,VBF1,VBF2,VBF3,VHlep,ZHinv,ttHl,ttHh
+
 # packaged
-python RunPackager.py --cats Incl0,Incl1,Incl2,Incl3,Incl4,Incl5,Incl6,Incl7 --exts fiducial_2016preVFP,fiducial_2016postVFP,fiducial_2017,fiducial_2018,fiducial_2022preEE,fiducial_2022postEE,fiducial_2023preBPix,fiducial_2023postBPix --mergeYears --batch local --outputExt packaged
-#ggH0,ggH1,ggH2,ggH3,VBF0,VBF1,VBF2,VBF3,VHlep,ZHinv,ttHl,ttHh
+python RunPackager.py --cats ggH0,ggH1,ggH2,ggH3,VBF0,VBF1,VBF2,VBF3 --exts fiducial_2016preVFP,fiducial_2016postVFP,fiducial_2017,fiducial_2018,fiducial_2022preEE,fiducial_2022postEE,fiducial_2023preBPix,fiducial_2023postBPix --mergeYears --batch local --outputExt packaged
+
 
 signal model plotting
 python RunPlotter.py --procs all --cats all --years 2016preVFP,2016postVFP,2017,2018,2022preEE,2022postEE,2023preBPix,2023postBPix --ext packaged
-for cat in "Incl0" "Incl1" "Incl2" "Incl3" "Incl4" "Incl5" "Incl6" "Incl7"; do
+for cat in "ggH0" "ggH1" "ggH2" "ggH3" "VBF0" "VBF1" "VBF2" "VBF3"; do
     python RunPlotter.py --procs all --cats $cat --years 2016preVFP,2016postVFP,2017,2018,2022preEE,2022postEE,2023preBPix,2023postBPix --ext packaged
 done
 
-for cat in Incl0 Incl1 Incl2 Incl3 Incl4 Incl5 Incl6 Incl7; do python scripts/combineSignalPdf.py --cat $cat; done
+for cat in "ggH0" "ggH1" "ggH2" "ggH3" "VBF0" "VBF1" "VBF2" "VBF3"; do python scripts/combineSignalPdf.py --cat $cat; done
 
 ###########################################
 # Background
 ###########################################
-cd ${mainPath}/Background
-make clean; make -j 16;
+# cd ${mainPath}/Background
+# make clean; make -j 16;
 
 # for cat in 0; do
 #     /eos/home-j/jiehan/finalfit_102X/CMSSW_10_2_13/src/flashggFinalFit/Background/runBackgroundScripts.sh -i /eos/home-j/jiehan/root/input_finalfit/background/ws/output_Data_all.root -p none -f ggF${cat} --ext fiducialAnalysis --catOffset $cat --intLumi 1 --year all --batch local --queue hep.q --sigFile none --isData --fTest
 # done
 
-# normal workspace via fTest
-python RunBackgroundScripts.py --inputConfig config_fiducial_run2.py --mode fTestParallel --jobOpts “--blindFit”
+# # normal workspace via fTest
+# python RunBackgroundScripts.py --inputConfig config_fiducial_run2.py --mode fTestParallel --jobOpts “--blindFit”
 
 # # make workspace with documentation
 # ./bin/BkgWSMaker -t "bern2,pow1,lau2,modgau1" -i /eos/home-j/jiehan/root/input_finalfit/background/ws/output_Data_all.root --saveMultiPdf outdir_fiducialAnalysis/CMS-HGG_multipdf_VBF0.root -D outdir_fiducialAnalysis/bkgfTest-Data -f VBF0 --mgg_low 100  --isData 1 --year all --catOffset 0 -v
