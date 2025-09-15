@@ -76,6 +76,16 @@ RooRealVar *intLumi_ = new RooRealVar("IntLumi","hacked int lumi", 1000.);
 
 TRandom3 *RandomGen = new TRandom3();
 
+// Structure to hold complete parameter information
+struct ParamInfo {
+  double value;
+  double min;
+  double max;
+  
+  ParamInfo() : value(0), min(-1e10), max(1e10) {}
+  ParamInfo(double v, double mi, double ma) : value(v), min(mi), max(ma) {}
+};
+
 // Check if JSON parameter file exists
 bool jsonParamsFileExists(const string& cat, const string& type, int order) {
   std::string fileName = Form("params_%s_%s%d.json", cat.c_str(), type.c_str(), order);
@@ -97,13 +107,57 @@ bool loadParamsFromJSON(const string& cat, const string& type, int order, map<st
     
     // Iterate over all parameters in JSON
     for (const auto& item : pt) {
-      params[item.first] = pt.get<double>(item.first);
+      // Check if this is the new format with value/min/max or old format with just value
+      if (item.second.get_child_optional("value")) {
+        // New format: extract value from sub-tree
+        params[item.first] = item.second.get<double>("value");
+      } else {
+        // Old format: directly get the value
+        params[item.first] = pt.get<double>(item.first);
+      }
     }
     std::cout << "[INFO] Loaded parameters from " << filePath << std::endl;
     return true;
   }
   catch (const std::exception& e) {
     std::cerr << "[WARNING] Failed to load parameters from " << filePath << ": " << e.what() << std::endl;
+    return false;
+  }
+}
+
+// Load complete parameter information from JSON file (including ranges)
+bool loadParamInfoFromJSON(const string& cat, const string& type, int order, map<string, ParamInfo>& paramInfo) {
+  std::string fileName = Form("params_%s_%s%d.json", cat.c_str(), type.c_str(), order);
+  std::string filePath = "params/" + fileName;
+  
+  try {
+    boost::property_tree::ptree pt;
+    boost::property_tree::read_json(filePath, pt);
+    
+    // Iterate over all parameters in JSON
+    for (const auto& item : pt) {
+      // Check if this is the new format with value/min/max
+      if (item.second.get_child_optional("value")) {
+        // New format: extract all information
+        ParamInfo info;
+        info.value = item.second.get<double>("value");
+        info.min = item.second.get<double>("min");
+        info.max = item.second.get<double>("max");
+        paramInfo[item.first] = info;
+      } else {
+        // Old format: only value available, use default ranges
+        ParamInfo info;
+        info.value = pt.get<double>(item.first);
+        info.min = -1e10;
+        info.max = 1e10;
+        paramInfo[item.first] = info;
+      }
+    }
+    std::cout << "[INFO] Loaded parameter info from " << filePath << std::endl;
+    return true;
+  }
+  catch (const std::exception& e) {
+    std::cerr << "[WARNING] Failed to load parameter info from " << filePath << ": " << e.what() << std::endl;
     return false;
   }
 }
@@ -126,7 +180,11 @@ bool saveParamsToJSON(const string& cat, const string& type, int order, const Ro
     RooRealVar* param;
     while ((param = dynamic_cast<RooRealVar*>(iter->Next()))) {
       if (!param->isConstant()) {  // Only save floating parameters
-        pt.put(param->GetName(), param->getVal());
+        boost::property_tree::ptree paramTree;
+        paramTree.put("value", param->getVal());
+        paramTree.put("min", param->getMin());
+        paramTree.put("max", param->getMax());
+        pt.put_child(param->GetName(), paramTree);
       }
     }
     delete iter;
@@ -152,8 +210,8 @@ std::string getParamSuffix(const std::string& paramName) {
   return paramName; // Return the full name if no underscore found
 }
 
-// Set PDF parameter values
-void setPdfParams(RooAbsPdf* pdf, const map<string, double>& params) {
+// Set PDF parameter values and ranges using complete parameter information
+void setPdfParamsWithRanges(RooAbsPdf* pdf, const map<string, ParamInfo>& paramInfo) {
   RooArgSet* pdfParams = pdf->getParameters(RooArgSet());
   TIterator* iter = pdfParams->createIterator();
   RooRealVar* param;
@@ -161,32 +219,36 @@ void setPdfParams(RooAbsPdf* pdf, const map<string, double>& params) {
   // First pass: try exact parameter name match
   while ((param = dynamic_cast<RooRealVar*>(iter->Next()))) {
     if (!param->isConstant()) {  // Only set floating parameters
-      auto it = params.find(param->GetName());
-      if (it != params.end()) {
-        std::cout << "[INFO] Setting parameter " << param->GetName() << " to " << it->second << std::endl;
-        param->setVal(it->second);
+      auto it = paramInfo.find(param->GetName());
+      if (it != paramInfo.end()) {
+        std::cout << "[INFO] Setting parameter " << param->GetName() 
+                  << " to value=" << it->second.value 
+                  << " range=[" << it->second.min << ", " << it->second.max << "]" << std::endl;
+        param->setRange(it->second.min, it->second.max);
+        param->setVal(it->second.value);
       }
     }
   }
   
   // Second pass: try matching the suffix part (e.g., "cp0", "cp1", etc.)
-  // For parameters like "env_pdf_0_13TeV_lau2_cp0", the order number (2) may vary
-  // but parameters with same suffix (cp0) should use the same value
   delete iter;
   iter = pdfParams->createIterator();
   while ((param = dynamic_cast<RooRealVar*>(iter->Next()))) {
     if (!param->isConstant()) {  // Only set floating parameters
-      auto it = params.find(param->GetName());
-      if (it == params.end()) {  // If not already set in first pass
+      auto it = paramInfo.find(param->GetName());
+      if (it == paramInfo.end()) {  // If not already set in first pass
         std::string suffix = getParamSuffix(param->GetName());
         
         // Try to find a parameter with matching suffix
-        for (const auto& p : params) {
+        for (const auto& p : paramInfo) {
           std::string paramSuffix = getParamSuffix(p.first);
           if (paramSuffix == suffix) {
             std::cout << "[INFO] Setting parameter " << param->GetName() 
-                      << " to " << p.second << " (matched by suffix '" << suffix << "')" << std::endl;
-            param->setVal(p.second);
+                      << " to value=" << p.second.value 
+                      << " range=[" << p.second.min << ", " << p.second.max << "]"
+                      << " (matched by suffix '" << suffix << "')" << std::endl;
+            param->setRange(p.second.min, p.second.max);
+            param->setVal(p.second.value);
             break;
           }
         }
@@ -264,28 +326,33 @@ RooAbsPdf* getPdf(PdfModelBuilder &pdfsModel, string type, int order, string *ty
   
   // If the PDF is successfully created and a category name is provided, try to load existing parameters
   if (pdf && cat != "") {
-    map<string, double> params;
+    map<string, ParamInfo> paramInfo;
     bool paramsLoaded = false;
     
     // Try to load parameters for the given order
     if (jsonParamsFileExists(cat, *typePrefix, order)) {
-      paramsLoaded = loadParamsFromJSON(cat, *typePrefix, order, params);
+      paramsLoaded = loadParamInfoFromJSON(cat, *typePrefix, order, paramInfo);
     } 
     // If not found, try to load parameters for order-1
     else if (order > 1 && jsonParamsFileExists(cat, *typePrefix, order-1)) {
       std::cout << "[INFO] Parameters for order " << order << " not found, trying order " << order-1 << std::endl;
-      paramsLoaded = loadParamsFromJSON(cat, *typePrefix, order-1, params);
+      paramsLoaded = loadParamInfoFromJSON(cat, *typePrefix, order-1, paramInfo);
     }
     // Finally, try to load parameters for order-2
     else if (order > 2 && jsonParamsFileExists(cat, *typePrefix, order-2)) {
       std::cout << "[INFO] Parameters for orders " << order << " and " << order-1 
                 << " not found, trying order " << order-2 << std::endl;
-      paramsLoaded = loadParamsFromJSON(cat, *typePrefix, order-2, params);
+      paramsLoaded = loadParamInfoFromJSON(cat, *typePrefix, order-2, paramInfo);
     }
     
-    // If parameters are successfully loaded, set them to the PDF
+    // If parameters are successfully loaded, set them to the PDF (including ranges)
     if (paramsLoaded) {
-      setPdfParams(pdf, params);
+      setPdfParamsWithRanges(pdf, paramInfo);
+    } else {
+      // If no parameter file exists, create one with current PDF parameters
+      std::cout << "[INFO] No parameter file found for " << cat << " " << *typePrefix << order 
+                << ", creating new parameter file with default values" << std::endl;
+      saveParamsToJSON(cat, *typePrefix, order, pdf);
     }
   }
 

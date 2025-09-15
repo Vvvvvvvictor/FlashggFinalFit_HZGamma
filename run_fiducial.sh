@@ -69,31 +69,31 @@ years=("2016preVFP" "2016postVFP" "2017" "2018" "2022preEE" "2022postEE" "2023pr
 #########################################
 # Signal
 #########################################
-# cd ${mainPath}/Signal
-# # # fTest
-# # for year in "${years[@]}"; do
-# #     python RunSignalScripts.py --inputConfig config_${year}_fiducial.py --mode fTest --modeOpts "--doPlots"
-# # done
-# # # syst
-# # for year in "${years[@]}"; do
-# #     python RunSignalScripts.py --inputConfig config_${year}_fiducial.py --mode calcPhotonSyst
-# # done
-# # signalfit
+cd ${mainPath}/Signal
+# # fTest
 # for year in "${years[@]}"; do
-#     python RunSignalScripts.py --inputConfig config_${year}_fiducial.py --mode signalFit --groupSignalFitJobsByCat --modeOpts "--doPlots --beamspotWidthData 3.5 --beamspotWidthMC 3.7 --useDCB --skipSystematics"
+#     python RunSignalScripts.py --inputConfig config_${year}_fiducial.py --mode fTest --modeOpts "--doPlots"
 # done
-
-# # packaged
-# python RunPackager.py --cats Incl0,Incl1,Incl2,Incl3,Incl4,Incl5,Incl6,Incl7 --exts fiducial_2016preVFP,fiducial_2016postVFP,fiducial_2017,fiducial_2018,fiducial_2022preEE,fiducial_2022postEE,fiducial_2023preBPix,fiducial_2023postBPix --mergeYears --batch local --outputExt packaged
-# #ggH0,ggH1,ggH2,ggH3,VBF0,VBF1,VBF2,VBF3,VHlep,ZHinv,ttHl,ttHh
-
-# signal model plotting
-# python RunPlotter.py --procs all --cats all --years 2016preVFP,2016postVFP,2017,2018,2022preEE,2022postEE,2023preBPix,2023postBPix --ext packaged
-# for cat in "Incl0" "Incl1" "Incl2" "Incl3" "Incl4" "Incl5" "Incl6" "Incl7"; do
-#     python RunPlotter.py --procs all --cats $cat --years 2016preVFP,2016postVFP,2017,2018,2022preEE,2022postEE,2023preBPix,2023postBPix --ext packaged
+# # syst
+# for year in "${years[@]}"; do
+#     python RunSignalScripts.py --inputConfig config_${year}_fiducial.py --mode calcPhotonSyst
 # done
+# signalfit
+for year in "${years[@]}"; do
+    python RunSignalScripts.py --inputConfig config_${year}_fiducial.py --mode signalFit --groupSignalFitJobsByCat --modeOpts "--doPlots --beamspotWidthData 3.5 --beamspotWidthMC 3.7 --useDCB --skipSystematics"
+done
 
-# for cat in Incl0 Incl1 Incl2 Incl3 Incl4 Incl5 Incl6 Incl7; do python scripts/combineSignalPdf.py --cat $cat; done
+# packaged
+python RunPackager.py --cats Incl0,Incl1,Incl2,Incl3,Incl4,Incl5,Incl6,Incl7 --exts fiducial_2016preVFP,fiducial_2016postVFP,fiducial_2017,fiducial_2018,fiducial_2022preEE,fiducial_2022postEE,fiducial_2023preBPix,fiducial_2023postBPix --mergeYears --batch local --outputExt packaged
+#ggH0,ggH1,ggH2,ggH3,VBF0,VBF1,VBF2,VBF3,VHlep,ZHinv,ttHl,ttHh
+
+signal model plotting
+python RunPlotter.py --procs all --cats all --years 2016preVFP,2016postVFP,2017,2018,2022preEE,2022postEE,2023preBPix,2023postBPix --ext packaged
+for cat in "Incl0" "Incl1" "Incl2" "Incl3" "Incl4" "Incl5" "Incl6" "Incl7"; do
+    python RunPlotter.py --procs all --cats $cat --years 2016preVFP,2016postVFP,2017,2018,2022preEE,2022postEE,2023preBPix,2023postBPix --ext packaged
+done
+
+for cat in Incl0 Incl1 Incl2 Incl3 Incl4 Incl5 Incl6 Incl7; do python scripts/combineSignalPdf.py --cat $cat; done
 
 ###########################################
 # Background
@@ -101,12 +101,12 @@ years=("2016preVFP" "2016postVFP" "2017" "2018" "2022preEE" "2022postEE" "2023pr
 cd ${mainPath}/Background
 make clean; make -j 16;
 
-for cat in 0; do
-    /eos/home-j/jiehan/finalfit_102X/CMSSW_10_2_13/src/flashggFinalFit/Background/runBackgroundScripts.sh -i /eos/home-j/jiehan/root/input_finalfit/background/ws/output_Data_all.root -p none -f ggF${cat} --ext fiducialAnalysis --catOffset $cat --intLumi 1 --year all --batch local --queue hep.q --sigFile none --isData --fTest
-done
+# for cat in 0; do
+#     /eos/home-j/jiehan/finalfit_102X/CMSSW_10_2_13/src/flashggFinalFit/Background/runBackgroundScripts.sh -i /eos/home-j/jiehan/root/input_finalfit/background/ws/output_Data_all.root -p none -f ggF${cat} --ext fiducialAnalysis --catOffset $cat --intLumi 1 --year all --batch local --queue hep.q --sigFile none --isData --fTest
+# done
 
-# # normal workspace via fTest
-# python RunBackgroundScripts.py --inputConfig config_fiducial_run2.py --mode fTestParallel --jobOpts “--blindFit”
+# normal workspace via fTest
+python RunBackgroundScripts.py --inputConfig config_fiducial_run2.py --mode fTestParallel --jobOpts “--blindFit”
 
 # # make workspace with documentation
 # ./bin/BkgWSMaker -t "bern2,pow1,lau2,modgau1" -i /eos/home-j/jiehan/root/input_finalfit/background/ws/output_Data_all.root --saveMultiPdf outdir_fiducialAnalysis/CMS-HGG_multipdf_VBF0.root -D outdir_fiducialAnalysis/bkgfTest-Data -f VBF0 --mgg_low 100  --isData 1 --year all --catOffset 0 -v
