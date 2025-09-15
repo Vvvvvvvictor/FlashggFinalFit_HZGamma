@@ -19,5 +19,5 @@ trees2wsCfg = {
 
   # Analysis categories: python list of cats or use 'auto' to extract from input tree
   'cats':'auto',
-  'flavs':'ele,mu'
+  'flavs':'ele,mu' # ele,mu
 }

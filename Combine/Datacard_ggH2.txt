@@ -7,16 +7,16 @@ jmax *
 kmax *
 ---------------------------------------------
 
-shapes      all_all_ele_hgg                                         VBF2                                     ./Models/signal/CMS-HGG_combinedPDFs_VBF2.root wsig_13TeV:dcb_all_all_VBF2_ele_13TeV
-shapes      all_all_mu_hgg                                          VBF2                                     ./Models/signal/CMS-HGG_combinedPDFs_VBF2.root wsig_13TeV:dcb_all_all_VBF2_mu_13TeV
-shapes      bkg_mass                                                VBF2                                     ./Models/background/CMS-HGG_multipdf_VBF2.root multipdf:CMS_hgg_VBF2_13TeV_bkgshape
-shapes      data_obs                                                VBF2                                     ./Models/background/CMS-HGG_multipdf_VBF2.root multipdf:roohist_data_mass_VBF2
+shapes      all_all_ele_hgg                                         ggH2                                     ./Models/signal/CMS-HGG_combinedPDFs_ggH2.root wsig_13TeV:dcb_all_all_ggH2_ele_13TeV
+shapes      all_all_mu_hgg                                          ggH2                                     ./Models/signal/CMS-HGG_combinedPDFs_ggH2.root wsig_13TeV:dcb_all_all_ggH2_mu_13TeV
+shapes      bkg_mass                                                ggH2                                     ./Models/background/CMS-HGG_multipdf_ggH2.root multipdf:CMS_hgg_ggH2_13TeV_bkgshape
+shapes      data_obs                                                ggH2                                     ./Models/background/CMS-HGG_multipdf_ggH2.root multipdf:roohist_data_mass_ggH2
 
 ---------------------------------------------------------------------------------------------------------------------------------
-bin                           VBF2                                                   
+bin                           ggH2                                                   
 observation                   -1                                                     
 ---------------------------------------------------------------------------------------------------------------------------------
-bin                           VBF2                                                    VBF2                                                    VBF2                                                   
+bin                           ggH2                                                    ggH2                                                    ggH2                                                   
 process                       all_all_ele_hgg                                         all_all_mu_hgg                                          bkg_mass                                               
 process                       0                                                       -1                                                      1                                                      
 rate                          1000.0000000                                            1000.0000000                                            1.0                                                    
@@ -24,4 +24,4 @@ rate                          1000.0000000                                      
 
 ----------------------------------------------------------------------------------------------------------------------------------
 
-pdfindex_VBF2_13TeV                                      discrete
+pdfindex_ggH2_13TeV                                      discrete

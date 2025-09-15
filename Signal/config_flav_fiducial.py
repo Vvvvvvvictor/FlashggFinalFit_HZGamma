@@ -5,15 +5,15 @@ _year = 'all'
 signalScriptCfg = {
   
   # Setup
-  'inputWSDir':'/eos/home-m/mingtao/workspace/zgamma/CMSSW_10_2_13/src/FlashggFinalFit_HZGamma/Inputdata/input_final/signal/signal_all',
+  'inputWSDir':'/eos/home-m/mingtao/workspace/zgamma/CMSSW_10_2_13/src/FlashggFinalFit_HZGamma/Inputdata/input_new/signal/signal_all',
   'procs':'all', # if auto: inferred automatically from filenames
-  'cats':'ggH0,ggH1,ggH2,ggH3,VBF0,VBF1,VBF2,VBF3', # if auto: inferred automatically from (0) workspace
+  # 'cats':'ggH0,ggH1,ggH2,ggH3,VBF0,VBF1,VBF2,VBF3', # if auto: inferred automatically from (0) workspace
+  'cats':'ggH0,ggH1,ggH2,ggH3',
   'ext':'fiducial_%s'%_year,
   'analysis':'fiducialAnalysis', # To specify which replacement dataset mapping (defined in ./python/replacementMap.py)
   'year':'%s'%_year, # Use 'combined' if merging all years: not recommended
   'massPoints':'120,125,130',
-  # 'massPoints':'120,125,130',
-  'flavours': 'ele,mu',
+  'flavours': 'ele,mu', # ele,mu,all
 
   #Photon shape systematics  
   'scales':'Scale,MuonPt', # separate nuisance per year

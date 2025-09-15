@@ -22,7 +22,7 @@ def get_options():
   parser.add_option("--mass", dest="mass", default='125', help="Mass of datasets")
   parser.add_option("--MH", dest="MH", default='125', help="Higgs mass (for pdf)")
   parser.add_option("--nBins", dest="nBins", default=170, type='int', help="Number of bins")
-  parser.add_option("--pdf_nBins", dest="pdf_nBins", default=3200, type='int', help="Number of bins")
+  parser.add_option("--pdf_nBins", dest="pdf_nBins", default=3400, type='int', help="Number of bins")
   parser.add_option("--threshold", dest="threshold", default=0.001, type='float', help="Threshold to prune process from plot default = 0.1% of total category norm")
   parser.add_option("--translateCats", dest="translateCats", default=None, help="JSON to store cat translations")
   parser.add_option("--translateProcs", dest="translateProcs", default=None, help="JSON to store proc translations")
@@ -115,7 +115,7 @@ for cat,f in inputFiles.iteritems():
       for flav in flavs_list:
         k = "dcb_%s_%s_%s"%(proc, year, flav)
         _id = "dcb_%s_%s_%s_%s_%s"%(proc, year, cat, flav, sqrts__)
-        print("k = %s, _id = %s"%(k, _id))
+        # print("k = %s, _id = %s"%(k, _id))
         norm_func = w.function("%s_normThisLumi"%(_id))
         if norm_func:  # Check if function exists
           norms[k] = norm_func
@@ -168,9 +168,12 @@ for cat,f in inputFiles.iteritems():
     pdf = w.pdf("extend%sThisLumi"%(_id)) 
     # print("extend%sThisLumi"%(_id))
     hpdfs[_id] = pdf.createHistogram("h_pdf_%s"%_id,xvar,ROOT.RooFit.Binning(opt.pdf_nBins))
-    # print("wcat = %f, float(opt.nBins) = %f" % (wcat,float(opt.nBins)))
+    print("wcat = %f, float(opt.nBins) = %f" % (wcat,float(opt.nBins)))
+    print("Before scale = %f" % (hpdfs[_id].Integral()))
     # hpdfs[_id].Scale(wcat*float(opt.nBins)/float(opt.pdf_nBins)) # FIXME: hardcoded 320
-    hpdfs[_id].Scale(wcat*float(opt.nBins)/340) # FIXME: hardcoded 340
+    hpdfs[_id].Scale(wcat*float(opt.nBins)/340) # FIXME: hardcoded 340 (4 * range size /GeV)
+    # hpdfs[_id].Scale(wcat*float(opt.nBins)/340/2) # FIXME: hardcoded 340 (4 * range size /GeV)
+    print("After scale = %f" % (hpdfs[_id].Integral()))
 
   # Fill total histograms: data, per-year pdfs and pdfs
   for _id,d in data_rwgt.iteritems(): d.fillHistogram(hists['data'],alist)
@@ -178,13 +181,15 @@ for cat,f in inputFiles.iteritems():
 
   # Sum pdf histograms
   for _id,p in hpdfs.iteritems():
-    print("hpdfs.iteritems(): _id = %s" % (_id))
+    # print("hpdfs.iteritems(): _id = %s" % (_id))
     if 'pdf' not in hists: 
       hists['pdf'] = p.Clone("h_pdf")
       hists['pdf'].Reset()
     # Fill
     hists['pdf'] += p
-  print("yield total: %f " % (hists['pdf'].Integral()*float(opt.nBins)/float(opt.pdf_nBins)))
+  print("Before scale = %f" % (hists['pdf'].Integral()))
+  print("pdf total yield: %f " % (hists['pdf'].Integral()*float(opt.nBins)/float(opt.pdf_nBins)))
+  # print("pdf total yield: %f " % (hists['pdf'].Integral()*float(opt.nBins)/float(opt.pdf_nBins)/2))
 
   # Per-year pdf histograms
   if len(opt.years.split(",")) > 1:

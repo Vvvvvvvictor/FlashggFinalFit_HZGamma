@@ -72,6 +72,7 @@ if opt.inputConfig != '':
     inputTreeDir     = _cfg['inputTreeDir']
     dataVars         = _cfg['dataVars']
     cats             = _cfg['cats']
+    flavs            = _cfg['flavs']
 
   else:
     print "[ERROR] %s config file does not exist. Leaving..."%opt.inputConfig
@@ -102,7 +103,7 @@ f = ROOT.TFile(opt.inputTreeFile)
 # Open output ROOT file and initiate workspace to store RooDataSets
 if opt.outputWSDir is not None: outputWSDir = opt.outputWSDir+"/ws"
 else: outputWSDir = "/".join(opt.inputTreeFile.split("/")[:-1])+"/ws"
-if not os.path.exists(outputWSDir): os.system("mkdir %s"%outputWSDir)
+if not os.path.exists(outputWSDir): os.system("mkdir -p %s"%outputWSDir)
 outputWSFile = outputWSDir+"/"+opt.inputTreeFile.split("/")[-1]
 print " --> Creating output workspace: (%s)"%outputWSFile
 fout = ROOT.TFile(outputWSFile,"RECREATE")
@@ -116,6 +117,13 @@ varNames = add_vars_to_workspace(ws,dataVars)
 # Make argset
 aset = make_argset(ws,varNames)
 
+# flav flag
+flav_var = None
+if flavs == 'ele':
+  flav_var = 'nel'
+elif flavs == 'mu':
+  flav_var = 'nmu'
+
 # Loop over categories and 
 for cat in cats:
   print " --> Extracting events from category: %s"%cat
@@ -123,21 +131,48 @@ for cat in cats:
   else: treeName = "%s/Data_%s_%s"%(inputTreeDir,sqrts__,cat)
   print "    * tree: %s"%treeName
   t = f.Get(treeName)
+  nTotalEvents = t.GetEntries()
+  print "    * Total events in tree: %d"%nTotalEvents
+
+  # check if flav_var exist
+  branch_names = [b.GetName() for b in t.GetListOfBranches()]
+  if flav_var and flav_var not in branch_names:
+    print "[WARNING] Required branch '%s' not found in tree '%s'. Skipping flavor filtering."%(flav_var,treeName)
+    use_flav_filter = False
+  else:
+    use_flav_filter = bool(flav_var)  # Set flav filter
 
   # Define dataset for cat
   dname = "Data_%s_%s"%(sqrts__,cat)  
   d = ROOT.RooDataSet(dname,dname,aset,'weight')
 
+  nPassedEvents = 0
+  nSkippedEvents = 0
+
   # Loop over events in tree and add to dataset with weight 1
   for ev in t:
+    # apply flavs filter
+    if use_flav_filter:
+      flav_val = getattr(ev, flav_var)
+      if flav_val == 0:
+        nSkippedEvents += 1
+        continue
     for var in dataVars: 
       if var == "weight": continue
       ws.var(var).setVal(getattr(ev,var))
+    nPassedEvents += 1
     d.add(aset,1.)
 
   # Add dataset to worksapce
   getattr(ws,'import')(d)
   
+  print "    * Events passed selection: %d"%nPassedEvents
+  if use_flav_filter:
+      print "    * Events skipped due to %s==0: %d"%(flav_var,nSkippedEvents)
+      print "    * Filter efficiency: %.2f" %(float(nPassedEvents)/float(nPassedEvents+nSkippedEvents))
+  else:
+      print "    * Events skipped: %d"%nSkippedEvents
+
 # Write workspace to file
 ws.Write()
 
