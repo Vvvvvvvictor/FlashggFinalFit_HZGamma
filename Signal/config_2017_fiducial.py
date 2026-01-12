@@ -5,13 +5,14 @@ _year = '2017'
 signalScriptCfg = {
   
   # Setup
-  'inputWSDir':'/eos/home-j/jiehan/root/input_finalfit/signal_%s'%_year,
+  'inputWSDir':'/eos/home-m/mingtao/workspace/zgamma/CMSSW_10_2_13/src/FlashggFinalFit_HZGamma/Inputdata/input_final/signal_%s'%_year,
   'procs':'auto', # if auto: inferred automatically from filenames
   'cats':'auto', # if auto: inferred automatically from (0) workspace
   'ext':'fiducial_%s'%_year,
   'analysis':'fiducialAnalysis', # To specify which replacement dataset mapping (defined in ./python/replacementMap.py)
   'year':'%s'%_year, # Use 'combined' if merging all years: not recommended
   'massPoints':'120,125,130',
+  # 'massPoints':'120,125,130',
   'flavours': 'ele,mu',
 
   #Photon shape systematics  

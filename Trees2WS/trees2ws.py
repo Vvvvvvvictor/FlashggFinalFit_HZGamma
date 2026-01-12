@@ -132,6 +132,13 @@ if cats == 'auto':
     if c not in cats:  # only add unique categories
       cats.append(c)
 
+def get_cat_list(cats):
+    if isinstance(cats, str):
+        return [cat.strip() for cat in cats.split(',')]
+    return cats
+
+cat_list = get_cat_list(cats)
+
 if opt.doNOTAG:
   # Check if NOTAG tree exists
   for tn in listOfTreeNames:
@@ -147,12 +154,12 @@ data = pandas.DataFrame()
 if opt.doSystematics: sdata = pandas.DataFrame()
 
 # Loop over categories: fill dataframe
-for cat in cats:
+for cat in cat_list:
   print " --> Extracting events from category: %s"%cat
   for flav in flavs.split(","):
     print " --> Extracting events for flavour: %s"%flav
     if inputTreeDir == '': treeName = "%s_%s_%s_%s_%s"%(opt.productionMode,opt.inputMass,flav,sqrts__,cat)
-    else: treeName = "%s/%s_%s_%s_%s_%s"%(inputTreeDir,opt.productionMode,opt.inputMass,flav,sqrts__,cat)
+    else: treeName = "%s/%s_M%s_%s_%s_%s"%(inputTreeDir,opt.productionMode,opt.inputMass,flav,sqrts__,cat)
     print "    * tree: %s"%treeName
     # Extract tree from uproot
     t = f[treeName]
@@ -288,7 +295,7 @@ for stxsId in data[stxsVar].unique():
   varNames = add_vars_to_workspace(ws,df,stxsVar)
 
   # Loop over cats
-  for cat in cats:
+  for cat in cat_list:
     print " --> Processing category: %s"%cat
     for flav in flavs.split(","):
       print "    --> Processing flavour: %s"%flav

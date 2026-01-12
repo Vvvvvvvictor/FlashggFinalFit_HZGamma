@@ -12,7 +12,7 @@ def get_options():
   parser.add_option("--exts", dest='exts', default='', help="Comma separate list of extensions")
   parser.add_option("--outputExt", dest='outputExt', default='packaged', help="Output extension")
   parser.add_option("--outputPath", dest='outputPath', default='.', help="Output path")
-  parser.add_option("--massPoints", dest='massPoints', default='120,125,130', help="Comma separated list of mass points")
+  parser.add_option("--massPoints", dest='massPoints', default='125', help="Comma separated list of mass points")
   parser.add_option("--mergeYears", dest='mergeYears', default=False, action="store_true", help="Merge specified categories across years")
   parser.add_option("--year", dest="year", default="2016", help="If not merging, then specify year for output file name")
   return parser.parse_args()
@@ -27,7 +27,9 @@ def rooiter(x):
 
 # Extract all files to be merged
 fNames = {}
-for ext in opt.exts.split(","): fNames[ext] = glob.glob("%s/outdir_%s/signalFit/output/CMS-HGG_sigfit_%s_*_%s.root"%(opt.outputPath,ext,ext,opt.cat))
+for ext in opt.exts.split(","): 
+  print("Merging files: %s/outdir_%s/signalFit/output/CMS-HGG_sigfit_*_%s.root"%(opt.outputPath,ext,opt.cat))
+  fNames[ext] = glob.glob("%s/outdir_%s/signalFit/output/CMS-HGG_sigfit_*_%s.root"%(opt.outputPath,ext,opt.cat))
 
 # Define ouput packaged workspace
 print " --> Packaging output workspaces"
@@ -38,6 +40,8 @@ packagedWS.imp = getattr(packagedWS,"import")
 data_merged = {}
 data_merged_names = []
 for mp in opt.massPoints.split(","): 
+  # print(mp)
+  # print(opt.cat)
   data_merged["m%s"%mp] = ROOT.TFile(fNames[opt.exts.split(",")[0]][0]).Get("wsig_13TeV").data("sig_mass_m%s_%s"%(mp,opt.cat)).emptyClone("sig_mass_m%s_%s"%(mp,opt.cat))
   data_merged_names.append( data_merged["m%s"%mp].GetName() )
 

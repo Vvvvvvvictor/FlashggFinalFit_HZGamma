@@ -184,7 +184,8 @@ class FinalModel:
   def makeNuisance(self,nuisanceName,nuisanceMeanConst,nuisanceSigmaConst,nuisanceRateConst,nuisanceType,nuisanceOpts=[]):
     self.NuisanceMap[nuisanceType][nuisanceName] = {
       'name':nuisanceName,
-      'param':ROOT.RooRealVar("%s_%s"%(outputWSNuisanceTitle__,nuisanceName),"%s_%s"%(outputWSNuisanceTitle__,nuisanceName),0.,-5.,5.),
+      # 'param':ROOT.RooRealVar("%s_%s"%(outputWSNuisanceTitle__,nuisanceName),"%s_%s"%(outputWSNuisanceTitle__,nuisanceName),0.,-5.,5.),
+      'param':ROOT.RooRealVar(nuisanceName,nuisanceName,0.,-5.,5.),
       'meanConst':ROOT.RooConstVar("const_%s_mean_%s"%(self.name,nuisanceName),"const_%s_mean_%s"%(self.name,nuisanceName),nuisanceMeanConst),
       'sigmaConst':ROOT.RooConstVar("const_%s_sigma_%s"%(self.name,nuisanceName),"const_%s_sigma_%s"%(self.name,nuisanceName),nuisanceSigmaConst),
       'rateConst':ROOT.RooConstVar("const_%s_rate_%s"%(self.name,nuisanceName),"const_%s_rate_%s"%(self.name,nuisanceName),nuisanceRateConst),
@@ -198,7 +199,7 @@ class FinalModel:
       if getattr(self,sType) != '': self.NuisanceMap[sType] = od()
 
     # Extract calcPhotonSyst output
-    psname = "%s/outdir_%s/calcPhotonSyst/pkl/%s.pkl"%(swd__,self.ext,self.cat)
+    psname = "%s/output_%s/calcPhotonSyst/pkl/%s.pkl"%(swd__,self.ext,self.cat)
     if not os.path.exists(psname):
       print " --> [ERROR] Photon systematics do not exist (%s). Please run calcPhotonSyst mode first or skip systematics (--skipSystematics)"%psname
       sys.exit(1)
@@ -213,22 +214,24 @@ class FinalModel:
     else:
       # Add scales, scalesCorr, scalesGlobal, smears
       for sType in ['scales','scalesCorr','scalesGlobal','smears']:
-	for syst in getattr(self,sType).split(","):
+        for syst in getattr(self,sType).split(","):
           if syst == '': continue
 
           # If corr/global nor in sType then build separate nuisance per year i.e. de-correlate
-          if('Corr' in sType)|('Global' in sType): sExt = ""
-          else: sExt = "_%s"%self.year
+          # if('Corr' in sType)|('Global' in sType): sExt = ""
+          # else: sExt = "_%s"%self.year
+          sExt = ""
 
           # Extract info
-	  systOpts = syst.split(":")
-	  sName = "%s_%s"%(systOpts[0],outputNuisanceExtMap[sType])
+          systOpts = syst.split(":")
+          # sName = "%s_%s"%(systOpts[0],outputNuisanceExtMap[sType])
+          sName = systOpts[0]
 
           # Extract constant values and make nuisance
           if sType == 'scalesGlobal': cMean, cSigma, cRate = 0.,0.,0.
-	  else: cMean, cSigma, cRate = r["%s_mean"%sName].values[0], r["%s_sigma"%sName].values[0], r["%s_rate"%sName].values[0]
-	  sOpts = systOpts[1:] if len(systOpts) > 1 else []
-	  self.makeNuisance("%s%s"%(sName,sExt),cMean,cSigma,cRate,sType,sOpts)
+          else: cMean, cSigma, cRate = r["%s_mean"%sName].values[0], r["%s_sigma"%sName].values[0], r["%s_rate"%sName].values[0]
+          sOpts = systOpts[1:] if len(systOpts) > 1 else []
+          self.makeNuisance("%s%s"%(sName,sExt),cMean,cSigma,cRate,sType,sOpts)
 
   # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   # Function to get RV fraction func

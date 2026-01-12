@@ -11,10 +11,10 @@ from array import array
 # So far defined up to MHPolyOrder=2
 pLUT = od()
 pLUT['DCB'] = od()
-pLUT['DCB']['dm_p0'] = [0.1,-2.5,2.5]
+pLUT['DCB']['dm_p0'] = [0.1,-1.,1.]
 pLUT['DCB']['dm_p1'] = [0.0,-0.1,0.1]
 pLUT['DCB']['dm_p2'] = [0.0,-0.001,0.001]
-pLUT['DCB']['sigma_p0'] = [2.,1.,20.]
+pLUT['DCB']['sigma_p0'] = [1.,0.,5.]
 pLUT['DCB']['sigma_p1'] = [0.0,-0.1,0.1]
 pLUT['DCB']['sigma_p2'] = [0.0,-0.001,0.001]
 pLUT['DCB']['n1_p0'] = [20.,1.00001,500]
@@ -149,7 +149,7 @@ def nChi2Addition(X,ssf,verbose=False):
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~   
 class SimultaneousFit:
   # Constructor
-  def __init__(self,_name,_proc,_cat,_flav,_datasetForFit,_xvar,_MH,_MHLow,_MHHigh,_massPoints,_nBins,_MHPolyOrder,_minimizerMethod,_minimizerTolerance,verbose=True):
+  def __init__(self,_name,_proc,_cat,_flav,_datasetForFit,_xvar,_MH,_MHLow,_MHHigh,_massPoints,_nBins,_MHPolyOrder,_minimizerMethod,_minimizerTolerance,_MHPolyConfig=None,verbose=False):
     self.name = _name
     self.proc = _proc
     self.cat = _cat
@@ -164,6 +164,7 @@ class SimultaneousFit:
     self.MHPolyOrder = _MHPolyOrder
     self.minimizerMethod = _minimizerMethod
     self.minimizerTolerance = _minimizerTolerance
+    self.MHPolyConfig = _MHPolyConfig
     self.verbose = verbose
     # Prepare vars
     self.MH.setConstant(False)
@@ -272,6 +273,63 @@ class SimultaneousFit:
   #   for pdf in ['dcb','gaus']: _pdfs.add(self.Pdfs[pdf])
   #   _coeffs.add(self.Coeffs['frac_constrained'])
   #   self.Pdfs['final'] = ROOT.RooAddPdf("%s_%s"%(self.proc,self.cat),"%s_%s"%(self.proc,self.cat),_pdfs,_coeffs,_recursive)
+
+  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~   
+  def buildFromConfig(self, config_file):
+    if self.verbose: 
+        print " --> (%s) Building DCB from config: %s" % (self.name, config_file)
+    
+    # Read from json file
+    with open(config_file, 'r') as f:
+        config = json.load(f)
+    
+    # DCB
+    for f in ['dm','sigma','n1','n2','a1','a2']: 
+            
+        k = "%s_dcb" % f
+        self.Varlists[k] = ROOT.RooArgList("%s_coeffs" % k)
+        
+        # Read parameter values from config
+        for po in range(0, self.MHPolyOrder+1):
+            param_name = '%s_p%s' % (f, po)
+            if param_name in config:
+                param_value = config[param_name]
+                # Set to constant(min=max=fix value)
+                self.Vars['%s_p%g'%(k,po)] = ROOT.RooRealVar(
+                    "%s_p%g"%(k,po), "%s_p%g"%(k,po),
+                    param_value, param_value, param_value  # Constant
+                )
+            else:
+                # Not found parameter in config file
+                default_val = pLUT['DCB']["%s_p%s"%(f,po)][0]
+                self.Vars['%s_p%g'%(k,po)] = ROOT.RooRealVar(
+                    "%s_p%g"%(k,po), "%s_p%g"%(k,po),
+                    default_val, default_val, default_val  # Constant
+                )
+            
+            self.Varlists[k].add(self.Vars['%s_p%g'%(k,po)])
+        
+        # Polynomial
+        self.Polynomials[k] = ROOT.RooPolyVar(k, k, self.dMH, self.Varlists[k])
+    
+    # Mean function
+    self.Polynomials['mean_dcb'] = ROOT.RooFormulaVar(
+        "mean_dcb", "mean_dcb", "(@0+@1)",
+        ROOT.RooArgList(self.MH, self.Polynomials['dm_dcb'])
+    )
+    
+    # DCB PDF
+    self.Pdfs['dcb'] = ROOT.RooDoubleCBFast(
+        "dcb", "dcb", self.xvar, self.Polynomials['mean_dcb'],
+        self.Polynomials['sigma_dcb'], self.Polynomials['a1_dcb'],
+        self.Polynomials['n1_dcb'], self.Polynomials['a2_dcb'], 
+        self.Polynomials['n2_dcb']
+    )
+    
+    self.Pdfs['final'] = self.Pdfs['dcb']
+    
+    if self.verbose:
+        print " --> (%s) DCB built from config, all parameters fixed" % self.name
 
   # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~   
   def buildDCBplusGaussian(self,_recursive=True):

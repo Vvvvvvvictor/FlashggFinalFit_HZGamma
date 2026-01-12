@@ -163,46 +163,56 @@ OPT=" --isData 1"
 fi
 
 # Modify the fitting range if necessary
-if [ "$CATS" = "VBF0" ]; then
-  RANGE=" --mgg_low 105 --mgg_high 170"
-elif [ "$CATS" = "VBF1" ]; then
-  RANGE=" --mgg_low 98 --mgg_high 163"
-elif [ "$CATS" = "VBF2" ]; then
-  RANGE=" --mgg_low 96 --mgg_high 161"
-elif [ "$CATS" = "VBF3" ]; then
-  RANGE=" --mgg_low 97 --mgg_high 162"
-elif [ "$CATS" = "ggH0" ]; then
-  RANGE=" --mgg_low 107 --mgg_high 172"
-elif [ "$CATS" = "ggH1" ]; then
-  RANGE=" --mgg_low 105 --mgg_high 170"
-elif [ "$CATS" = "ggH2" ]; then
-  RANGE=" --mgg_low 103 --mgg_high 168"
-elif [ "$CATS" = "ggH3" ]; then
-  RANGE=" --mgg_low 97 --mgg_high 162"
-elif [ "$CATS" = "Incl0" ]; then
-  RANGE=" --mgg_low 107 --mgg_high 170"
-elif [ "$CATS" = "Incl1" ]; then
-  RANGE=" --mgg_low 105 --mgg_high 165"
-elif [ "$CATS" = "Incl2" ]; then
-  RANGE=" --mgg_low 103 --mgg_high 165"
-elif [ "$CATS" = "Incl3" ]; then
-  RANGE=" --mgg_low 102 --mgg_high 165"
-elif [ "$CATS" = "Incl4" ]; then
-  RANGE=" --mgg_low 100 --mgg_high 162"
-elif [ "$CATS" = "Incl5" ]; then
-  RANGE=" --mgg_low 97 --mgg_high 160"
-elif [ "$CATS" = "Incl6" ]; then
+if [ "$CATS" == "VBF0" ]; then
   RANGE=" --mgg_low 95 --mgg_high 160"
-elif [ "$CATS" = "Incl7" ]; then
+elif [ "$CATS" == "VBF1" ]; then
+  RANGE=" --mgg_low 95 --mgg_high 160"
+elif [ "$CATS" == "VBF2" ]; then
+  RANGE=" --mgg_low 100 --mgg_high 165"
+elif [ "$CATS" == "VBF3" ]; then
+  RANGE=" --mgg_low 106 --mgg_high 171"
+elif [[ "$CATS" == *"ggH0"* ]]; then
+  RANGE=" --mgg_low 106 --mgg_high 171"
+elif [[ "$CATS" == *"ggH1"* ]]; then
+  RANGE=" --mgg_low 104 --mgg_high 169"
+elif [[ "$CATS" == *"ggH2"* ]]; then
+  RANGE=" --mgg_low 105 --mgg_high 170"
+elif [[ "$CATS" == *"ggH3"* ]]; then
+  RANGE=" --mgg_low 95 --mgg_high 160"
+# elif [[ "$CATS" == *"ggH0"* ]]; then
+#   RANGE=" --mgg_low 95 --mgg_high 160"
+# elif [[ "$CATS" == *"ggH1"* ]]; then
+#   RANGE=" --mgg_low 97 --mgg_high 162"
+# elif [[ "$CATS" == *"ggH2"* ]]; then
+#   RANGE=" --mgg_low 105 --mgg_high 170"
+# elif [[ "$CATS" == *"ggH3"* ]]; then
+#   RANGE=" --mgg_low 106 --mgg_high 171"
+elif [ "$CATS" == "Incl0" ]; then
+  RANGE=" --mgg_low 107 --mgg_high 170"
+elif [ "$CATS" == "Incl1" ]; then
+  RANGE=" --mgg_low 105 --mgg_high 165"
+elif [ "$CATS" == "Incl2" ]; then
+  RANGE=" --mgg_low 103 --mgg_high 165"
+elif [ "$CATS" == "Incl3" ]; then
+  RANGE=" --mgg_low 102 --mgg_high 165"
+elif [ "$CATS" == "Incl4" ]; then
+  RANGE=" --mgg_low 100 --mgg_high 162"
+elif [ "$CATS" == "Incl5" ]; then
+  RANGE=" --mgg_low 97 --mgg_high 160"
+elif [ "$CATS" == "Incl6" ]; then
+  RANGE=" --mgg_low 95 --mgg_high 160"
+elif [ "$CATS" == "Incl7" ]; then
   RANGE=" --mgg_low 95 --mgg_high 160"
 else
   RANGE=""
 fi
 echo $RANGE
 
-FUNCLIST="PowerLawStepxGau,BernsteinStepxGau,LaurentStepxGau,ExponentialStepxGau,ExpModGauss" # PowerLawStepxGau,BernsteinStepxGau,LaurentStepxGau,ExponentialStepxGau,ExpModGauss
-echo " ./bin/fTest -i $FILE --saveMultiPdf $OUTDIR/CMS-HGG_multipdf_$EXT_$CATS.root -D $OUTDIR/bkgfTest$DATAEXT -f $CATS $RANGE $OPT $OPTION --year $YEAR --catOffset $CATOFFSET --funclist $FUNCLIST --blindFit --nsig_in $NSIG_IN #--dochi2Fit"
-./bin/fTest -i $FILE --saveMultiPdf $OUTDIR/CMS-HGG_multipdf_$EXT_$CATS.root -D $OUTDIR/bkgfTest$DATAEXT -f $CATS $RANGE $OPT --year $YEAR --catOffset $CATOFFSET --funclist $FUNCLIST --blindFit --nsig_in $NSIG_IN #--plot_corr #--dochi2Fit
+FUNCLIST="ExponentialStepxGau" # PowerLawStepxGau,BernsteinStepxGau,LaurentStepxGau,ExponentialStepxGau,ModGaus,ExpModGauss
+# echo " ./bin/fTest -i $FILE --saveMultiPdf $OUTDIR/CMS-HGG_multipdf_$EXT_$CATS.root -D $OUTDIR/bkgfTest$DATAEXT -f $CATS $RANGE $OPT $OPTION --year $YEAR --catOffset $CATOFFSET --funclist $FUNCLIST --nsig_in $NSIG_IN #--dochi2Fit #--blindFit"
+# ./bin/fTest -i $FILE --saveMultiPdf $OUTDIR/CMS-HGG_multipdf_$EXT_$CATS.root -D $OUTDIR/bkgfTest$DATAEXT -f $CATS $RANGE $OPT --year $YEAR --catOffset $CATOFFSET --funclist $FUNCLIST --nsig_in $NSIG_IN #--plot_corr #--dochi2Fit #--blindFit 
+echo " ./bin/fTest_sync -i $FILE --saveMultiPdf $OUTDIR/CMS-HGG_multipdf_$EXT_$CATS.root -D $OUTDIR/bkgfTest$DATAEXT -f $CATS $RANGE $OPT $OPTION --year $YEAR --catOffset $CATOFFSET --funclist $FUNCLIST --nsig_in $NSIG_IN #--dochi2Fit #--blindFit"
+./bin/fTest_sync -i $FILE --saveMultiPdf $OUTDIR/CMS-HGG_multipdf_$EXT_$CATS.root -D $OUTDIR/bkgfTest$DATAEXT -f $CATS $RANGE $OPT --year $YEAR --catOffset $CATOFFSET --funclist $FUNCLIST --nsig_in $NSIG_IN --blindFit #--plot_corr #--dochi2Fit #--blindFit 
 FTEST_RETURN=$?
 echo "fTest return code: $FTEST_RETURN"
 

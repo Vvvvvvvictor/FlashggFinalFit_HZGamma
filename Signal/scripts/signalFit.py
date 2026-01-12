@@ -50,15 +50,16 @@ def get_options():
   # For systematics
   parser.add_option('--skipSystematics', dest='skipSystematics', default=False, action="store_true", help="Skip shape systematics in signal model")
   parser.add_option('--useDiagonalProcForSyst', dest='useDiagonalProcForSyst', default=False, action="store_true", help="Use diagonal process for systematics (requires diagonal mapping produced by getDiagProc script)")
-  parser.add_option("--scales", dest='scales', default='', help="Photon shape systematics: scales")
+  parser.add_option("--scales", dest='scales', default='CMS_scale_e,CMS_scale_g,CMS_scale_m', help="Photon shape systematics: scales")
   parser.add_option("--scalesCorr", dest='scalesCorr', default='', help='Photon shape systematics: scalesCorr')
   parser.add_option("--scalesGlobal", dest='scalesGlobal', default='', help='Photon shape systematics: scalesGlobal')
-  parser.add_option("--smears", dest='smears', default='', help='Photon shape systematics: smears')
+  parser.add_option("--smears", dest='smears', default='CMS_res_e,CMS_res_g,CMS_res_m', help='Photon shape systematics: smears')
   # Parameter values
   parser.add_option('--replacementThreshold', dest='replacementThreshold', default=100, type='int', help="Nevent threshold to trigger replacement dataset")
   parser.add_option('--beamspotWidthData', dest='beamspotWidthData', default=3.4, type='float', help="Width of beamspot in data [cm]")
   parser.add_option('--beamspotWidthMC', dest='beamspotWidthMC', default=5.14, type='float', help="Width of beamspot in MC [cm]")
   parser.add_option('--MHPolyOrder', dest='MHPolyOrder', default=1, type='int', help="Order of polynomial for MH dependence")
+  parser.add_option("--MHPolyConfig", dest='MHPolyConfig', default=None, help="Read coefficient value from config file")
   parser.add_option('--nBins', dest='nBins', default=340, type='int', help="Number of bins for fit")
   # Minimizer options
   parser.add_option('--minimizerMethod', dest='minimizerMethod', default='TNC', help="(Scipy) Minimizer method")
@@ -96,8 +97,9 @@ f0 = ROOT.TFile(nominalWSFileName,"read")
 inputWS0 = f0.Get(inputWSName__)
 xvar = inputWS0.var(opt.xvar)
 xvarFit = xvar.Clone()
-dZ = inputWS0.var("dZ")
-aset = ROOT.RooArgSet(xvar,dZ)
+# dZ = inputWS0.var("dZ")
+# aset = ROOT.RooArgSet(xvar,dZ)
+aset = ROOT.RooArgSet(xvar)
 f0.Close()
 
 # Create MH var
@@ -161,22 +163,28 @@ for mp in opt.massPoints.split(","):
   d_list = []
 
   for proc in re.sub("all", "ggH,VBF", opt.proc).split(","):
+  # for proc in opt.proc.split(","):
     print(re.sub("all", "*", " --> Extracting dataset: %s/output*M%s*%s.root" %(opt.inputWSDir,mp,proc)))
     WSFileNames = glob.glob(re.sub("all", "*", "%s/output*M%s*%s.root"%(opt.inputWSDir,mp,proc)))
     print(WSFileNames)
 
     for flav in re.sub("all", "ele,mu", opt.flav).split(","):
+    # for flav in opt.flav.split(","):
       for WSFileName in WSFileNames:
         f = ROOT.TFile(WSFileName,"read")
         inputWS = f.Get(inputWSName__)
-        reducedSet = ROOT.RooArgSet(inputWS.var(opt.xvar),inputWS.var("dZ"))
+        # reducedSet = ROOT.RooArgSet(inputWS.var(opt.xvar),inputWS.var("dZ"))
+        reducedSet = ROOT.RooArgSet(inputWS.var(opt.xvar))
         datasetName = "%s_%s_%s_%s_%s"%(procToData(proc.split("_")[0]),mp,flav,sqrts__,catRVFit)
+        # print(datasetName)
         rdataset = reduceDataset(inputWS.data(datasetName),reducedSet)
         d_list.append(rdataset)
         # inputWS.Delete()
         f.Close()
   d = d_list[0].emptyClone()
-  for ds in d_list: d.append(ds)
+  if len(d_list) > 1: 
+    for ds in d_list: d.append(ds)
+  else: d = d_list[0]
   print("Number of DataSet: %d"%len(d_list))
   nominalDatasets[mp] = d.Clone()
   if opt.skipVertexScenarioSplit: datasetRVForFit[mp] = d
@@ -310,7 +318,7 @@ if not opt.useDCB:
       nWV = int(ngauss["%s_%s_%s"%(procWVFit,catWVFit,flavWVFit)]['nRV'])
     print " --> Fitting function: convolution of nGaussians (RV=%g,WV=%g)"%(nRV,nWV)
 else:
-  print " --> Fitting function: DCB + 1 Gaussian"
+  print " --> Fitting function: DCB"
 
 if opt.doVoigtian:
   print " --> Will add natural Higgs width as parameter in Pdf (Gaussians -> Voigtians)"
@@ -320,10 +328,16 @@ if opt.doVoigtian:
 ssfMap = od()
 name = "Total" if opt.skipVertexScenarioSplit else "RV"
 # FIXME: add flav to SimultaneousFit function
-ssfRV = SimultaneousFit(name,opt.proc,opt.cat,opt.flav,datasetRVForFit,xvar.Clone(),MH,MHLow,MHHigh,opt.massPoints,opt.nBins,opt.MHPolyOrder,opt.minimizerMethod,opt.minimizerTolerance)
-if opt.useDCB: ssfRV.buildDCBplusGaussian()
-else: ssfRV.buildNGaussians(nRV)
-ssfRV.runFit()
+ssfRV = SimultaneousFit(name,opt.proc,opt.cat,opt.flav,datasetRVForFit,xvar.Clone(),MH,MHLow,MHHigh,opt.massPoints,opt.nBins,opt.MHPolyOrder,opt.minimizerMethod,opt.minimizerTolerance,opt.MHPolyConfig,verbose=False)
+if opt.useDCB: 
+  if opt.MHPolyConfig: 
+    ssfRV.buildFromConfig()
+  else: 
+    ssfRV.buildDCBplusGaussian()
+    ssfRV.runFit()
+else: 
+  ssfRV.buildNGaussians(nRV)
+  ssfRV.runFit()
 ssfRV.buildSplines()
 ssfMap[name] = ssfRV
 

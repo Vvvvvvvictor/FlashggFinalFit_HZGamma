@@ -96,6 +96,13 @@ if cats == 'auto':
     c = tn.split("_%s_"%sqrts__)[-1].split(";")[0]
     cats.append(c)
 
+def get_cat_list(cats):
+    if isinstance(cats, str):
+        return [cat.strip() for cat in cats.split(',')]
+    return cats
+
+cat_list = get_cat_list(cats)
+
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Open input ROOT file
 f = ROOT.TFile(opt.inputTreeFile)
@@ -125,43 +132,58 @@ elif flavs == 'mu':
   flav_var = 'nmu'
 
 # Loop over categories and 
-for cat in cats:
+for cat in cat_list:
   print " --> Extracting events from category: %s"%cat
-  if inputTreeDir == '': treeName = "Data_%s_%s"%(sqrts__,cat)
-  else: treeName = "%s/Data_%s_%s"%(inputTreeDir,sqrts__,cat)
-  print "    * tree: %s"%treeName
-  t = f.Get(treeName)
-  nTotalEvents = t.GetEntries()
-  print "    * Total events in tree: %d"%nTotalEvents
-
-  # check if flav_var exist
-  branch_names = [b.GetName() for b in t.GetListOfBranches()]
-  if flav_var and flav_var not in branch_names:
-    print "[WARNING] Required branch '%s' not found in tree '%s'. Skipping flavor filtering."%(flav_var,treeName)
-    use_flav_filter = False
-  else:
-    use_flav_filter = bool(flav_var)  # Set flav filter
+  treeNames = []
+  # if inputTreeDir == '':
+  #     treeNames.append("Data_%s_%s_ele"%(sqrts__,cat))
+  #     treeNames.append("Data_%s_%s_mu"%(sqrts__,cat))
+  # else:
+  #     treeNames.append("%s/Data_%s_%s_ele"%(inputTreeDir,sqrts__,cat))
+  #     treeNames.append("%s/Data_%s_%s_mu"%(inputTreeDir,sqrts__,cat))
+  if inputTreeDir == '': treeNames.append("Data_%s_%s"%(sqrts__,cat))
+  else: treeNames.append("%s/Data_%s_%s"%(inputTreeDir,sqrts__,cat))
+  
+  print "    * tree list: %s"%treeNames
 
   # Define dataset for cat
   dname = "Data_%s_%s"%(sqrts__,cat)  
   d = ROOT.RooDataSet(dname,dname,aset,'weight')
 
+  nTotalEvents = 0
   nPassedEvents = 0
   nSkippedEvents = 0
 
-  # Loop over events in tree and add to dataset with weight 1
-  for ev in t:
-    # apply flavs filter
-    if use_flav_filter:
-      flav_val = getattr(ev, flav_var)
-      if flav_val == 0:
-        nSkippedEvents += 1
-        continue
-    for var in dataVars: 
-      if var == "weight": continue
-      ws.var(var).setVal(getattr(ev,var))
-    nPassedEvents += 1
-    d.add(aset,1.)
+  for treeName in treeNames:
+    t = f.Get(treeName)
+    if not t:
+      print "    [WARNING] Tree '%s' not found. Skipping."%treeName
+      continue
+    nTotalEvents += t.GetEntries()
+    print "    * tree: %s"%treeName
+    print "    * Total events in this tree: %d"%t.GetEntries()
+
+    # check if flav_var exist
+    branch_names = [b.GetName() for b in t.GetListOfBranches()]
+    if flav_var and flav_var not in branch_names:
+      print "[WARNING] Required branch '%s' not found in tree '%s'. Skipping flavor filtering."%(flav_var,treeName)
+      use_flav_filter = False
+    else:
+      use_flav_filter = bool(flav_var)  # Set flav filter
+
+    # Loop over events in tree and add to dataset with weight 1
+    for ev in t:
+      # apply flavs filter
+      if use_flav_filter:
+        flav_val = getattr(ev, flav_var)
+        if flav_val == 0:
+          nSkippedEvents += 1
+          continue
+      for var in dataVars: 
+        if var == "weight": continue
+        ws.var(var).setVal(getattr(ev,var))
+      nPassedEvents += 1
+      d.add(aset,1.)
 
   # Add dataset to worksapce
   getattr(ws,'import')(d)

@@ -5,7 +5,8 @@ trees2wsCfg = {
   'inputTreeDir':'DiphotonTree',
 
   # Variables to be added to dataframe: use wildcard * for common strings
-  'mainVars':["CMS_hgg_mass","weight","dZ"],#,"weight_central","*Up","*Down", "*central"],
+  # 'mainVars':["CMS_hgg_mass","weight","dZ"],#,"weight_central","*Up","*Down", "*central"],
+  'mainVars':["CMS_hgg_mass","weight"],#,"weight_central","*Up","*Down", "*central"],
   'dataVars':["CMS_hgg_mass","weight"], # Vars to be added for data
   'stxsVar':'',
   'notagVars':[], # Vars to add to NOTAG RooDataset
@@ -14,10 +15,11 @@ trees2wsCfg = {
   'theoryWeightContainers':{},
 
   # List of systematics: use string YEAR for year-dependent systematics
-  'systematics':["Smearing", "Scale", "FNUF", "Material", "JER", "JES", "METJes", "METUnclustered", "MuonPt"],
-  #'systematics': [''],
+  # 'systematics':["Smearing", "Scale", "FNUF", "Material", "JER", "JES", "METJes", "METUnclustered", "MuonPt"],
+  'systematics': [''],
 
   # Analysis categories: python list of cats or use 'auto' to extract from input tree
-  'cats':'auto',
-  'flavs':'ele,mu' # ele,mu
+  # 'cats':'auto',
+  'cats':'ggH0,ggH1,ggH2,ggH3,VBF0,VBF1,VBF2,VBF3',
+  'flavs':'ele,mu' # ele,mu,all
 }
